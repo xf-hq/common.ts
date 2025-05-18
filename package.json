@@ -1,0 +1,28 @@
+{
+  "name": "sx-lib",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {},
+  "dependencies": {
+    "@paralleldrive/cuid2": "latest",
+    "acorn": "latest",
+    "acorn-loose": "latest",
+    "acorn-walk": "latest",
+    "case": "latest",
+    "diff-match-patch": "latest",
+    "immutable": "latest",
+    "typescript": "next",
+    "uuid": "latest"
+  },
+  "peerDependencies": {
+    "chalk": "^5.4.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.26.0",
+    "@stylistic/eslint-plugin": "^4.2.0",
+    "@types/bun": "^1.2.11",
+    "@types/diff-match-patch": "^1.0.36",
+    "eslint": "^9.26.0",
+    "typescript-eslint": "^8.31.1"
+  }
+}
