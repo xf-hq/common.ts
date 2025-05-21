@@ -28,16 +28,16 @@ export function isIterable<T> (a: any): a is Iterable<T> { return isObject(a) &&
 export function isObject<A extends object> (a: A | Nothing | Primitive | AnyFunction): a is IsExplicitAnyOrUnknown<A> extends true ? Record<keyof any, any> : A;
 export function isObject (a: unknown): a is Record<any, any>;
 export function isObject (a: unknown) { return typeof a === 'object' && a !== null; }
+export function isFunction<T extends AnyFunction> (a: any): a is T;
 export function isFunction<T extends AnyFunctionOrAbstractConstructor> (a: T | Nothing | Primitive | Record<keyof any, any>): a is IsExplicitAnyOrUnknown<T> extends true ? AnyFunction : T;
 export function isFunction<T extends AnyFunctionOrAbstractConstructor> (a: any): a is T;
 export function isFunction<T extends AnyConstructor> (a: any): a is T;
-export function isFunction<T extends AnyFunction> (a: any): a is T;
 export function isFunction (a: unknown): a is AnyFunction;
 export function isFunction (a: unknown) { return typeof a === 'function'; }
 export function isClass<T extends AnyAbstractConstructor, U> (a: T | U): a is T { return typeof a === 'function' && Object.getOwnPropertyDescriptor(a, 'prototype')?.writable === false; }
 export function isNonClassFunction<F extends AnyFunction, C extends AnyAbstractConstructor, U> (a: F | C | U): a is F { return isFunction(a) && !isClass(a); }
 export const isBoolean = (a: any): a is boolean => typeof a === 'boolean';
-export function isString<T extends string = string, U = unknown> (a: T | U): a is T { return typeof a === 'string'; }
+export function isString (a: any): a is string { return typeof a === 'string'; }
 export const isNumber = (a: any): a is number => typeof a === 'number';
 export const isBigInt = (a: any): a is bigint => typeof a === 'bigint';
 export const isSymbol = (a: any): a is symbol => typeof a === 'symbol';
