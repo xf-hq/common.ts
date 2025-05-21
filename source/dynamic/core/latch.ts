@@ -9,12 +9,20 @@ export interface LatchController extends Latch {
 export interface ResettableLatchController extends LatchController {
   reset (): void;
 }
-export interface MulticastLatch extends Latch {
+export interface LatchMulticaster {
+  attach (latch: ResettableLatchController): void;
+  detach (latch: ResettableLatchController): void;
+}
+export interface MulticastLatch extends Latch, LatchMulticaster {
   attach (latch: LatchController): void;
   detach (latch: LatchController): void;
 }
 export interface MulticastLatchController extends MulticastLatch, LatchController {}
-export interface ResettableMulticastLatch extends MulticastLatch {
+export interface ResettableLatchMulticaster extends LatchMulticaster {
+  attach (latch: ResettableLatchController): void;
+  detach (latch: ResettableLatchController): void;
+}
+export interface ResettableMulticastLatch extends MulticastLatch, ResettableLatchMulticaster {
   attach (latch: ResettableLatchController): void;
   detach (latch: ResettableLatchController): void;
 }
@@ -86,3 +94,54 @@ export const MulticastingLatch = FnCT<ResettableMulticastLatchController>()(
     }
   }
 );
+
+interface QueuedEvent<T> {
+  readonly event: T;
+  next: QueuedEvent<T> | undefined;
+}
+export class QueueableEventLatch<T> {
+  private readonly _latch = MulticastingLatch();
+  private _current: T | undefined;
+  private _next: QueuedEvent<T> | undefined;
+  private _last: QueuedEvent<T> | undefined;
+
+  get current (): T {
+    if (!this._latch.waiting) return this._current as T;
+    throw new Error(`This property is only available while a 'dispatch' operation is in progress.`);
+  }
+
+  dispatch (event: T): void {
+    if (this._latch.waiting) {
+      this._current = event;
+      this._latch.release();
+      this._latch.reset();
+      let next = this._next;
+      while (next) {
+        if (next === this._last) {
+          this._next = this._last = undefined;
+        }
+        else {
+          this._next = next.next;
+        }
+        this._current = next.event;
+        this._latch.release();
+        this._latch.reset();
+        next = this._next;
+      }
+    }
+    else if (this._next) {
+      const newLast: QueuedEvent<T> = {
+        event,
+        next: undefined,
+      };
+      this._last!.next = newLast;
+      this._last = newLast;
+    }
+    else {
+      this._last = this._next = {
+        event,
+        next: undefined,
+      };
+    }
+  }
+}
