@@ -1,4 +1,4 @@
-import { normalizeBlockIndentToString } from '../../primitive/string';
+import { normalizeBlockIndentToString } from '../../primitive';
 import { ThisShouldBeUnreachable } from '../../general/errors';
 import { FnCC } from '../../general/factories-and-latebinding';
 import { isArray, isDefined, isFunction, isNonArrayObject, isNotNull, isNull, isNumber, isPrimitive, isString, isUndefined } from '../../general/type-checking';

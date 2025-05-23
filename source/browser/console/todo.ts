@@ -1,5 +1,5 @@
-import { defineGetter } from '@sx/lib/primitive/object';
-import { isArray, isDefined, isFunction, isNonZeroLengthString, isObject, isString, isSymbol, isUndefined } from '@sx/lib/general/type-checking';
+import { defineGetter } from '@xf-common/primitive';
+import { isArray, isDefined, isFunction, isNonZeroLengthString, isObject, isString, isSymbol, isUndefined } from '@xf-common/general/type-checking';
 import { setLightness } from '../color/color-functions';
 import { Material } from '../color/material';
 import { ConsoleMessage, cmsg } from './console-message';

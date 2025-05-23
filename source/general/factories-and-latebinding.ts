@@ -41,7 +41,7 @@ export function FnC<A extends any[], T> (_Class: new (...args: A) => T) {
  *
  *
  * // Example with static custom getters:
- * import { copyOwnProps } from '@sx/lib/general/object';
+ * import { copyOwnProps } from '@xf-common/general/object';
  * const MyClass = FnCC(class MyClass {
  *   static create = copyOwnProps(() => new MyClass(), {
  *     get MeaningOfLife () { return 42; }

@@ -1,4 +1,4 @@
-import { isString, isNumber, isArray } from '../general/type-checking';
+import { isString, isNumber, isArray } from '../../general/type-checking';
 
 /**
  * Returns a random string generator function that never returns the same string twice unless every possible string has

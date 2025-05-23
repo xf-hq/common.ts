@@ -1,4 +1,4 @@
-import { anyDefined, isArray, isDefined, isString } from '../general/type-checking';
+import { anyDefined, isArray, isDefined, isString } from '../../general/type-checking';
 import { TemplateLiteral } from './template-literal';
 
 export const firstChar = (s: Exclude<string, ''>) => s[0];

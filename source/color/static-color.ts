@@ -1,5 +1,5 @@
 import { isDefined, isNumber, isString, isUndefined } from '../general/type-checking';
-import { clamp, wrap } from '../primitive/number';
+import { clamp, wrap } from '../primitive';
 import { hexToHSLA, hexToRGBA, type HSLA, hslaToHex, hslaToRGBA, normalizeHexColorString, type RGBA, rgbaToHex, rgbaToHSLA } from './color-functions';
 
 export const isStaticColor = (a: any): a is StaticColor => a instanceof StaticColor;

@@ -28,7 +28,8 @@ export function isIterable<T> (a: any): a is Iterable<T> { return isObject(a) &&
 export function isObject<A extends object> (a: A | Nothing | Primitive | AnyFunction): a is IsExplicitAnyOrUnknown<A> extends true ? Record<keyof any, any> : A;
 export function isObject (a: unknown): a is Record<any, any>;
 export function isObject (a: unknown) { return typeof a === 'object' && a !== null; }
-export function isFunction<T extends AnyFunction> (a: any): a is T;
+export function isFunction (a: any): a is Function; // eslint-disable-line @typescript-eslint/no-unsafe-function-type
+export function isFunction<T extends AnyFunction, U> (a: any): a is T;
 export function isFunction<T extends AnyFunctionOrAbstractConstructor> (a: T | Nothing | Primitive | Record<keyof any, any>): a is IsExplicitAnyOrUnknown<T> extends true ? AnyFunction : T;
 export function isFunction<T extends AnyFunctionOrAbstractConstructor> (a: any): a is T;
 export function isFunction<T extends AnyConstructor> (a: any): a is T;

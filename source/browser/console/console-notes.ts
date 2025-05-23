@@ -2,7 +2,7 @@ import { MaterialSC } from '../../color/material';
 import { Lazy } from '../../general/factories-and-latebinding';
 import { makeCache } from '../../general/ids-and-caching';
 import { isArray, isString } from '../../general/type-checking';
-import { inls } from '../../primitive/string';
+import { inls } from '../../primitive';
 import { ConsoleMessage, isConsoleMessage } from './console-message';
 
 const PLAIN_MESSAGE_COLOR = MaterialSC.orange[300].desaturate('75%');

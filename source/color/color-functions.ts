@@ -1,5 +1,4 @@
-import { clamp, ifNaN, round, wrap } from '../primitive/number';
-import { truncateStringWithEllipsis } from '../primitive/string';
+import { clamp, ifNaN, round, truncateStringWithEllipsis, wrap } from '../primitive';
 
 export interface RGBA {
   r: number;

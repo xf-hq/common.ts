@@ -1,4 +1,4 @@
-import { isArray, isString } from '../general/type-checking';
+import { isArray, isString } from '../../general/type-checking';
 
 export namespace TemplateLiteral {
   export function isTemplateStringsArray (value: any): value is TemplateStringsArray {
