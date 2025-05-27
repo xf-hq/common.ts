@@ -12,7 +12,7 @@ export class ManualSetSource<T> implements SetSource.Manual<T> {
   readonly #emitter: Subscribable.Controller<[event: SetSource.Event<T>]>;
   readonly #set: Set<T>;
 
-    get [SetSourceTag] () { return true as const; }
+  get [SetSourceTag] () { return true as const; }
 
   get __set () { return this.#set; }
   get size () { return this.#set.size; }

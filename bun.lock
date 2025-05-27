@@ -1,32 +1,5 @@
 {
   "lockfileVersion": 1,
-  "workspaces": {
-    "": {
-      "name": "sx-lib",
-      "dependencies": {
-        "@paralleldrive/cuid2": "latest",
-        "acorn": "latest",
-        "acorn-loose": "latest",
-        "acorn-walk": "latest",
-        "case": "latest",
-        "diff-match-patch": "latest",
-        "immutable": "latest",
-        "typescript": "next",
-        "uuid": "latest",
-      },
-      "devDependencies": {
-        "@eslint/js": "^9.26.0",
-        "@stylistic/eslint-plugin": "^4.2.0",
-        "@types/bun": "^1.2.11",
-        "@types/diff-match-patch": "^1.0.36",
-        "eslint": "^9.26.0",
-        "typescript-eslint": "^8.31.1",
-      },
-      "peerDependencies": {
-        "chalk": "^5.4.1",
-      },
-    },
-  },
   "packages": {
     "@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.7.0", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, "sha512-dyybb3AcajC7uha6CvhdVRJqaKyn7w2YKqKyAN37NKYgZT36w+iRb0Dymmc5qEJ549c/S31cMMSFd75bteCpCw=="],
 
