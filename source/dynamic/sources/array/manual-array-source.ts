@@ -25,6 +25,8 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
   /** @internal */
   get __array () { return this.#array; }
 
+  get length () { return this.#array.length; }
+
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<T>], A>, ...args: A): ArraySource.Subscription<T> {
     const subscription = this.#emitter.subscribe(subscriber, ...args);
     return new ArraySourceSubscription(this, subscription);
@@ -86,6 +88,9 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
         default: this.#emitter.signal({ kind: 'batch', events });
       }
     }
+  }
+  clear (): void {
+    this.splice(0, this.length);
   }
 
   static DemandObserverAdapter = class DemandObserverAdapter<T> implements Subscribable.DemandObserver.ListenerInterface<[event: ArraySource.Event<T>]> {

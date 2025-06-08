@@ -85,6 +85,7 @@ export namespace ArraySource {
 
   export interface Manual<T> extends ArraySource<T> {
     readonly __array: T[];
+    readonly length: number;
     push (...values: T[]): void;
     pop (): T | undefined;
     unshift (...values: T[]): void;
@@ -92,6 +93,7 @@ export namespace ArraySource {
     splice (index: number, deletions: number, ...insertions: T[]): void;
     set (index: number, value: T): void;
     batch (callback: (arraySource: Manual<T>) => void): void;
+    clear (): void;
   }
   export namespace Manual {
     export interface DemandObserver<T> {
