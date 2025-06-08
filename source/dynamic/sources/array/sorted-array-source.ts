@@ -21,7 +21,7 @@ export class SortedArraySource<T> implements ArraySource<T>, Subscribable.Receiv
   #elementReferences: Element<T>[] | undefined;
   #sortedValues: T[] | undefined;
 
-    get [ArraySourceTag] () { return true as const; }
+  get [ArraySourceTag] () { return true as const; }
 
   get __array () { return this.#sortedValues; }
 

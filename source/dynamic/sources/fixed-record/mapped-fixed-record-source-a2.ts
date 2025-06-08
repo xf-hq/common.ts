@@ -30,7 +30,7 @@ export class MappedFixedRecordSourceA2<
   #rightSubscription: FixedRecordSource.Subscription<TRecordB> | undefined;
   #mappedRecord: RecordMapperA2<TMap> | undefined;
 
-    get [FixedRecordSourceTag] () { return true as const; }
+  get [FixedRecordSourceTag] () { return true as const; }
 
   get __record (): Readonly<RecordMapperA2<TMap>> { return this.#mappedRecord!; }
 

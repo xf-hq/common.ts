@@ -2,14 +2,25 @@ import { Subscribable } from '../../core/subscribable';
 import { ArraySource } from './array-source';
 import { ArraySourceSubscription, ArraySourceTag } from './common';
 
+// export class ManualMapSource<K, V> implements InternalMapSource<K, V>, MapSource.Manual<K, V> {
+//   constructor (initialMap: Map<K, V>, onDemandChanged?: MapSource.Manual.DemandObserver<K, V>) {
+//     this.#map = initialMap;
+//     this.#emitter = onDemandChanged
+//       ? new Subscribable.Controller<[event: MapSource.Event<K, V>]>(new ManualMapSource.DemandObserverAdapter(this, onDemandChanged))
+//       : new Subscribable.Controller<[event: MapSource.Event<K, V>]>();
+//   }
+
 export class ManualArraySource<T> implements ArraySource.Manual<T> {
-  constructor (initialArray: T[] = []) {
+  constructor (initialArray: T[] = [], onDemandChanged?: ArraySource.Manual.DemandObserver<T>) {
     this.#array = initialArray;
+    this.#emitter = onDemandChanged
+      ? new Subscribable.Controller<[event: ArraySource.Event<T>]>(new ManualArraySource.DemandObserverAdapter(this, onDemandChanged))
+      : new Subscribable.Controller<[event: ArraySource.Event<T>]>();
   }
-  readonly #emitter = new Subscribable.Controller<[event: ArraySource.Event<T>]>();
+  readonly #emitter: Subscribable.Controller<[event: ArraySource.Event<T>]>;
   readonly #array: T[];
 
-    get [ArraySourceTag] () { return true as const; }
+  get [ArraySourceTag] () { return true as const; }
 
   /** @internal */
   get __array () { return this.#array; }
@@ -76,4 +87,15 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
       }
     }
   }
+
+  static DemandObserverAdapter = class DemandObserverAdapter<T> implements Subscribable.DemandObserver.ListenerInterface<[event: ArraySource.Event<T>]> {
+    constructor (
+      private readonly source: ManualArraySource<T>,
+      private readonly onDemandChanged: ArraySource.Manual.DemandObserver<T>
+    ) {}
+    online (): void { this.onDemandChanged.online?.(this.source); }
+    offline (): void { this.onDemandChanged.offline?.(this.source); }
+    subscribe (receiver: ArraySource.Receiver<T, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
+    unsubscribe (receiver: ArraySource.Receiver<T, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
+  };
 }

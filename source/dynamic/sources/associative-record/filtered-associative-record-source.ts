@@ -16,7 +16,7 @@ export class FilteredAssociativeRecordSource<V> implements InternalAssociativeRe
   #upstreamSubscription: AssociativeRecordSource.Subscription<V> | undefined;
   #filteredRecord: Record<string, V> | undefined;
 
-    get [AssociativeRecordSourceTag] () { return true as const; }
+  get [AssociativeRecordSourceTag] () { return true as const; }
 
   /** @internal */
   get __record () { return this.#filteredRecord ??= throwError('Internal record not initialized.'); }

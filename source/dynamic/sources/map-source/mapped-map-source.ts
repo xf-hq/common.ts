@@ -16,7 +16,7 @@ export class MappedMapSource<K, VA, VB> implements InternalMapSource<K, VB>, Sub
   #upstreamSubscription: MapSource.Subscription<K, VA> | undefined;
   #mappedMap: Map<K, VB> | undefined;
 
-    get [MapSourceTag] () { return true as const; }
+  get [MapSourceTag] () { return true as const; }
 
   /** @internal */
   get __map () { return this.#mappedMap ??= throwError('Internal map not initialized.'); }

@@ -76,16 +76,16 @@ export namespace ValueSource {
     return new ConstantValueSource(value);
   }
 
-  export function map1<A, B> (compute: (a: B) => A): (a: ValueSource<B>) => ValueSource<A>;
-  export function map1<A, B> (compute: (a: B) => A, a: ValueSource<B>): ValueSource<A>;
-  export function map1<A, B> (compute: (a: B) => A, a?: ValueSource<B>): any {
+  export function map<A, B> (compute: (a: A) => B): (a: ValueSource<A>) => ValueSource<B>;
+  export function map<A, B> (compute: (a: A) => B, a: ValueSource<A>): ValueSource<B>;
+  export function map<A, B> (compute: (a: A) => B, a?: ValueSource<A>): any {
     if (arguments.length === 1) return UnaryOperationSource.define(compute);
     return new UnaryOperationSource(a!, { compute });
   }
 
-  export function map2<A, B, C> (compute: (a: B, b: C) => A): (a: ValueSource<B>, b: ValueSource<C>) => ValueSource<A>;
-  export function map2<A, B, C> (compute: (a: B, b: C) => A, a: ValueSource<B>, b: ValueSource<C>): ValueSource<A>;
-  export function map2<A, B, C> (compute: (a: B, b: C) => A, a?: ValueSource<B>, b?: ValueSource<C>): any {
+  export function map2<A, B, C> (compute: (a: A, b: B) => C): (a: ValueSource<A>, b: ValueSource<B>) => ValueSource<C>;
+  export function map2<A, B, C> (compute: (a: A, b: B) => C, a: ValueSource<A>, b: ValueSource<B>): ValueSource<C>;
+  export function map2<A, B, C> (compute: (a: A, b: B) => C, a?: ValueSource<A>, b?: ValueSource<B>): any {
     if (arguments.length === 1) return BinaryOperationSource.define(compute);
     return new BinaryOperationSource(a!, b!, { compute });
   }

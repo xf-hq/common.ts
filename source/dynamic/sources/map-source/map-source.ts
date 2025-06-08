@@ -99,7 +99,7 @@ export namespace MapSource {
     end (): void {
       this.receiver.end?.();
     }
-    unsubscribed (): void {
+    terminated (): void {
       this.receiver.unsubscribed?.();
     }
   }

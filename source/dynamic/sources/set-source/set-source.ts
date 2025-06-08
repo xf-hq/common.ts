@@ -80,7 +80,7 @@ export namespace SetSource {
     end (): void {
       this.receiver.end?.();
     }
-    unsubscribed (): void {
+    terminated (): void {
       this.receiver.unsubscribed?.();
     }
   }

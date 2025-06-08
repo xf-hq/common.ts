@@ -16,7 +16,7 @@ export class FilteredMapSource<K, V> implements InternalMapSource<K, V>, Subscri
   #upstreamSubscription: MapSource.Subscription<K, V> | undefined;
   #filteredMap: Map<K, V> | undefined;
 
-    get [MapSourceTag] () { return true as const; }
+  get [MapSourceTag] () { return true as const; }
 
   /** @internal */
   get __map () { return this.#filteredMap ??= throwError('Internal map not initialized.'); }

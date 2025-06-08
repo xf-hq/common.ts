@@ -9,7 +9,7 @@ export class ManualAssociativeRecordSource<V> implements InternalAssociativeReco
   readonly #emitter = new Subscribable.Controller<[event: AssociativeRecordSource.Event<V>]>();
   readonly #record: Record<string, V>;
 
-    get [AssociativeRecordSourceTag] () { return true as const; }
+  get [AssociativeRecordSourceTag] () { return true as const; }
 
   get __record () { return this.#record; }
 

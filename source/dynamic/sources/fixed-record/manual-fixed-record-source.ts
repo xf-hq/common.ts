@@ -12,7 +12,7 @@ export class ManualFixedRecordSource<TRecord extends AnyRecord, TEventPerField e
   readonly #emitter: Subscribable.Controller<[event: FixedRecordSource.Event<TRecord, TEventPerField>]>;
   readonly #record: TRecord;
 
-    get [FixedRecordSourceTag] () { return true as const; }
+  get [FixedRecordSourceTag] () { return true as const; }
 
   get __record () { return this.#record; }
 

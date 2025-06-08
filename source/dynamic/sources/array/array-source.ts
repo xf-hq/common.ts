@@ -1,6 +1,6 @@
-import { returnVoid } from '../../../general/presets';
-import { isFunction } from '../../../general/type-checking';
 import { dispose } from '../../../general/disposables';
+import { returnVoid } from '../../../general/presets';
+import { isArray, isFunction } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { MapSource } from '../map-source/map-source';
 import { ArraySourceTag } from './common';
@@ -8,8 +8,8 @@ import { FilteredArraySource } from './filtered-array-source';
 import { ManualArraySource } from './manual-array-source';
 import { MapSourceEntriesArraySource } from './map-source-entries-array-source';
 import { MappedArraySource } from './mapped-array-source';
-import { StatefulMappedArraySource } from './stateful-mapped-array-source';
 import { SortedArraySource } from './sorted-array-source';
+import { StatefulMappedArraySource } from './stateful-mapped-array-source';
 
 /**
  * To consume an `ArraySource`:
@@ -26,6 +26,7 @@ export interface ArraySource<T> {
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<T>], A>, ...args: A): ArraySource.Subscription<T>;
 }
 export namespace ArraySource {
+  export type Receiver<T, A extends any[] = []> = Subscribable.Receiver<[event: ArraySource.Event<T>], A>;
   export type Subscriber<T, A extends any[]> = Subscribable.Subscriber<[event: ArraySource.Event<T>], A>;
   export interface Subscription<T> extends Disposable {
     readonly __array: readonly T[];
@@ -62,7 +63,7 @@ export namespace ArraySource {
     if (!isFunction(subscriber)) subscriber.end?.(...args);
   }
   function release<A extends any[]> (subscriber: Subscriber<any, A>, ...args: A): void {
-    if (!isFunction(subscriber)) subscriber.unsubscribed?.(...args);
+    if (!isFunction(subscriber)) subscriber.terminated?.(...args);
   }
 
   const EMPTY_ARRAY: readonly any[] = [];
@@ -92,9 +93,28 @@ export namespace ArraySource {
     set (index: number, value: T): void;
     batch (callback: (arraySource: Manual<T>) => void): void;
   }
+  export namespace Manual {
+    export interface DemandObserver<T> {
+      online? (source: Manual<T>): void;
+      offline? (source: Manual<T>): void;
+      subscribe? (source: Manual<T>, receiver: Subscribable.Receiver<[event: ArraySource.Event<T>], any[]>): void;
+      unsubscribe? (source: Manual<T>, receiver: Subscribable.Receiver<[event: ArraySource.Event<T>], any[]>): void;
+    }
+  }
 
-  export function create<T> (array: T[] = []): Manual<T> {
-    return new ManualArraySource(array);
+  // export function create<K, V> (map?: Map<K, V>): Manual<K, V>;
+  // export function create<K, V> (map: Map<K, V>, onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>;
+  // export function create<K, V> (onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>;
+  // export function create<K, V> (arg0?: Map<K, V> | Manual.DemandObserver<K, V>, arg1?: Manual.DemandObserver<K, V>): Manual<K, V> {
+  //   const [map, onDemandChanged] = isIterable(arg0) ? [arg0, arg1] : [new Map<K, V>(), arg0];
+  //   return new ManualMapSource(map, onDemandChanged);
+  // }
+  export function create<T> (array?: T[]): Manual<T>;
+  export function create<T> (array: T[], onDemandChanged: Manual.DemandObserver<T>): Manual<T>;
+  export function create<T> (onDemandChanged: Manual.DemandObserver<T>): Manual<T>;
+  export function create<T> (arg0?: T[] | Manual.DemandObserver<T>, arg1?: Manual.DemandObserver<T>): Manual<T> {
+    const [array, onDemandChanged] = isArray(arg0) ? [arg0, arg1] : [[], arg0];
+    return new ManualArraySource(array, onDemandChanged);
   }
 
   export interface StatefulMapper<A, B, TItemState, TCommonState = void> {

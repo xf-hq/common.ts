@@ -73,7 +73,7 @@ export namespace Subscribable {
         this.notifyDemandChanged('unsubscribe', receiver);
 
         subscription.terminated = true;
-        if (isDefined(receiver.unsubscribed)) receiver.unsubscribed(...refArgs);
+        if (isDefined(receiver.terminated)) receiver.terminated(...refArgs);
 
         this.__decrementDemand();
       });
@@ -184,7 +184,7 @@ export namespace Subscribable {
      *   `Disposable`) and that mechanism is invoked, all actively subscribed receivers that implement `terminate` must
      *   be signalled immediately.
      */
-    unsubscribed? (...args: TRefArgs): void;
+    terminated? (...args: TRefArgs): void;
   }
 
   interface Subscription<TEventArgs extends unknown[], TRefArgs extends any[] = []> {

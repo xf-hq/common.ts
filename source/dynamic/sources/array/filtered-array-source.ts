@@ -22,7 +22,7 @@ export class FilteredArraySource<T> implements ArraySource<T>, Subscribable.Rece
   #filteredElementReferences: Element<T>[] | undefined;
   #filteredValues: T[] | undefined;
 
-    get [ArraySourceTag] () { return true as const; }
+  get [ArraySourceTag] () { return true as const; }
 
   get __array () { return this.#filteredValues; }
 

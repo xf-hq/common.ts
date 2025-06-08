@@ -21,7 +21,7 @@ export class MappedFixedRecordSource<
   #upstreamSubscription: FixedRecordSource.Subscription<TRecordA> | undefined;
   #mappedRecord: TRecordB | undefined;
 
-    get [FixedRecordSourceTag] () { return true as const; }
+  get [FixedRecordSourceTag] () { return true as const; }
 
   get __record (): Readonly<TRecordB> { return this.#mappedRecord!; }
 

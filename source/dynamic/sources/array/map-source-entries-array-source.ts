@@ -14,7 +14,7 @@ export class MapSourceEntriesArraySource<K, V> implements ArraySource<[K, V]>, S
   #upstreamSubscription: MapSource.Subscription<K, V> | undefined;
   #array: [K, V][] | undefined;
 
-    get [ArraySourceTag] () { return true as const; }
+  get [ArraySourceTag] () { return true as const; }
 
   /** @internal */
   get __array () { return this.#array; }

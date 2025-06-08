@@ -8,7 +8,7 @@ export class ConstantValueSource<T> implements ValueSource<T> {
   constructor (value: T) { this.#subscription = new ConstantValueSource.Subscription(value); }
   readonly #subscription: ValueSource.Subscription<T>;
 
-    get [ValueSourceTag] () { return true as const; }
+  get [ValueSourceTag] () { return true as const; }
 
   subscribe (): ValueSource.Subscription<T> { return this.#subscription; }
 

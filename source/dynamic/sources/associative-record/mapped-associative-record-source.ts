@@ -16,7 +16,7 @@ export class MappedAssociativeRecordSource<VA, VB> implements InternalAssociativ
   #upstreamSubscription: AssociativeRecordSource.Subscription<VA> | undefined;
   #mappedRecord: Record<string, VB> | undefined;
 
-    get [AssociativeRecordSourceTag] () { return true as const; }
+  get [AssociativeRecordSourceTag] () { return true as const; }
 
   /** @internal */
   get __record () { return this.#mappedRecord ??= throwError('Internal record not initialized.'); }

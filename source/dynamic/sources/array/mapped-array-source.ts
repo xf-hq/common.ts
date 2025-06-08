@@ -15,7 +15,7 @@ export class MappedArraySource<A, B> implements ArraySource<B>, Subscribable.Rec
   #upstreamSubscription: ArraySource.Subscription<A> | undefined;
   #mappedArray: B[] | undefined;
 
-    get [ArraySourceTag] () { return true as const; }
+  get [ArraySourceTag] () { return true as const; }
 
   /** @internal */
   get __array () { return this.#mappedArray; }

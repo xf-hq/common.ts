@@ -14,7 +14,7 @@ export class MapSourceFromEntries<K, V> implements MapSource<K, V>, Subscribable
   #upstreamSubscription: ArraySource.Subscription<readonly [K, V]> | undefined;
   #map: Map<K, V> | undefined;
 
-    get [MapSourceTag] () { return true as const; }
+  get [MapSourceTag] () { return true as const; }
 
   get __map () { return this.#map; }
 

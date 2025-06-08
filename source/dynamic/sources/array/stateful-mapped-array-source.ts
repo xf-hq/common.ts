@@ -18,7 +18,7 @@ export class StatefulMappedArraySource<A, B, S, C> implements ArraySource<B>, Su
   #commonState: C | undefined;
   #mappedArray: B[] | undefined;
 
-    get [ArraySourceTag] () { return true as const; }
+  get [ArraySourceTag] () { return true as const; }
 
   /** @internal */
   get __array () { return this.#mappedArray; }

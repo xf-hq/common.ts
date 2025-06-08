@@ -17,7 +17,7 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
   #isManuallyFinalized = false;
   #value: T;
 
-    get [ValueSourceTag] () { return true as const; }
+  get [ValueSourceTag] () { return true as const; }
 
   get value (): T { return this.#value; }
   get finalization (): Async<true> { return this.#finalization ??= Async.create(); }

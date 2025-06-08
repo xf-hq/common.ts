@@ -19,7 +19,7 @@ export class StatefulMappedMapSource<K, VA, VB, S, C> implements InternalMapSour
   #commonState: C | undefined;
   #mappedMap: Map<K, VB> | undefined;
 
-    get [MapSourceTag] () { return true as const; }
+  get [MapSourceTag] () { return true as const; }
 
   /** @internal */
   get __map () { return this.#mappedMap ??= throwError('Internal map not initialized.'); }

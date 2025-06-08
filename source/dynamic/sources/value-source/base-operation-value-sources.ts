@@ -28,7 +28,7 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
     isFinalized: boolean;
   } | null = null;
 
-    get [ValueSourceTag] () { return true as const; }
+  get [ValueSourceTag] () { return true as const; }
 
   get value (): B { return this.#current!.value; }
   get finalization (): Async<true> { return this.#current!.finalization; }
@@ -119,7 +119,7 @@ export class BinaryOperationSource<A, B = A, C = A> implements ValueSource.Immed
     rightEnded: boolean;
   } | null = null;
 
-    get [ValueSourceTag] () { return true as const; }
+  get [ValueSourceTag] () { return true as const; }
 
   get value (): C { return this.#current!.value; }
   get finalization (): Async<true> { return this.#current!.finalization; }
