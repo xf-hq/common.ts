@@ -77,7 +77,6 @@ export class StatefulMappedMapSource<K, VA, VB, S, C> implements MapSource.Immed
       this.#mapper.item.dispose(state, this.#commonState!);
     }
   }
-
   readonly #disposalQueue: S[] = [];
   private applyEvent (event: MapSource.Event<K, VA>): MapSource.Event<K, VB> {
     const states = this.#states!;
@@ -86,12 +85,34 @@ export class StatefulMappedMapSource<K, VA, VB, S, C> implements MapSource.Immed
     const commonState = this.#commonState!;
     const itemHandler = mapper.item;
 
-    const applyStateChanges = mapper.event?.[event.kind] as ((event: MapSource.Event<K, VA>, itemStates: Map<K, S>, commonState: C) => void) | undefined;
-    if (isDefined(applyStateChanges)) applyStateChanges(event, states, commonState);
+    let mappedAdditions: Map<K, VB> | null = null;
+    let mappedChanges: Map<K, VB> | null = null;
+    let mappedDeletions: K[] | null = null;
 
-    switch (event.kind) {
-      case 'set': {
-        const { key, value } = event;
+    // Handle additions
+    if (event.add) {
+      const addEntries = Array.from(event.add.entries());
+      if (mapper.event?.add) {
+        mapper.event.add(event.add, addEntries.map(([k]) => states.get(k)!), commonState);
+      }
+
+      for (const [key, value] of addEntries) {
+        const state = itemHandler.init(value, key, commonState);
+        states.set(key, state);
+        const mappedValue = itemHandler.map(state, commonState);
+        map.set(key, mappedValue);
+        (mappedAdditions ??= new Map()).set(key, mappedValue);
+      }
+    }
+
+    // Handle changes
+    if (event.change) {
+      const changeEntries = Array.from(event.change.entries());
+      if (mapper.event?.change) {
+        mapper.event.change(event.change, changeEntries.map(([k]) => states.get(k)!), commonState);
+      }
+
+      for (const [key, value] of changeEntries) {
         let state: S;
         if (itemHandler.update && states.has(key)) {
           state = itemHandler.update(value, key, states.get(key)!, commonState);
@@ -102,26 +123,33 @@ export class StatefulMappedMapSource<K, VA, VB, S, C> implements MapSource.Immed
           state = itemHandler.init(value, key, commonState);
         }
         states.set(key, state);
-        const mappedValue = map.set(key, itemHandler.map(state, commonState)).get(key)!;
-        return { kind: 'set', key, value: mappedValue };
-      }
-      case 'delete': {
-        const { key } = event;
-        const state = states.get(key)!;
-        states.delete(key);
-        map.delete(key);
-        this.#disposalQueue.push(state);
-        return { kind: 'delete', key, value: itemHandler.map(state, commonState) };
-      }
-      case 'clear': {
-        const previousSize = map.size;
-        for (const state of states.values()) {
-          this.#disposalQueue.push(state);
-        }
-        states.clear();
-        map.clear();
-        return { kind: 'clear', previousSize };
+        const mappedValue = itemHandler.map(state, commonState);
+        map.set(key, mappedValue);
+        (mappedChanges ??= new Map()).set(key, mappedValue);
       }
     }
+
+    // Handle deletions
+    if (event.delete) {
+      if (mapper.event?.delete) {
+        mapper.event.delete(event.delete, event.delete.map(k => states.get(k)!), commonState);
+      }
+
+      for (const key of event.delete) {
+        const state = states.get(key);
+        if (state) {
+          states.delete(key);
+          map.delete(key);
+          this.#disposalQueue.push(state);
+          (mappedDeletions ??= []).push(key);
+        }
+      }
+    }
+
+    return {
+      add: mappedAdditions,
+      change: mappedChanges,
+      delete: mappedDeletions,
+    };
   }
 }

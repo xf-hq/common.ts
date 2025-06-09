@@ -25,39 +25,26 @@ export interface MapSource<K, V> {
 export namespace MapSource {
   export type Receiver<K, V, A extends any[] = []> = Subscribable.Receiver<[event: MapSource.Event<K, V>], A>;
   export type Subscriber<K, V, A extends any[] = []> = Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>;
-
   export interface Subscription<K, V> extends Disposable {
     readonly __map: ReadonlyMap<K, V>;
   }
-
-  export type Event<K, V> = Event.Set<K, V> | Event.Delete<K, V> | Event.Clear;
-  export namespace Event {
-    interface BaseEvent<T extends string> {
-      readonly kind: T;
-    }
-    export interface Set<K, V> extends BaseEvent<'set'> {
-      readonly key: K;
-      readonly value: V;
-    }
-    export interface Delete<K, V> extends BaseEvent<'delete'> {
-      readonly key: K;
-      readonly value: V;
-    }
-    export interface Clear extends BaseEvent<'clear'> {
-      readonly previousSize: number;
-    }
+  export interface Event<K, V> {
+    readonly add: ReadonlyMap<K, V> | null;
+    readonly change: ReadonlyMap<K, V> | null;
+    readonly delete: ReadonlyArray<K> | null;
   }
-
   export interface Immediate<K, V> extends MapSource<K, V> {
     readonly __map: ReadonlyMap<K, V>;
     readonly size: number;
   }
+
   export interface Manual<K, V> extends Immediate<K, V> {
     readonly __emitter: Subscribable.Controller.Auxiliary<[event: MapSource.Event<K, V>]>;
 
     set (key: K, value: V): boolean;
     delete (key: K): boolean;
     clear (): void;
+    modify (assignments: ReadonlyMap<K, V> | null, deletions: ReadonlyArray<K> | null): void;
 
     get (key: K): V | undefined;
     has (key: K): boolean;
@@ -76,26 +63,31 @@ export namespace MapSource {
 
   export function create<K, V> (map?: Map<K, V>): Manual<K, V>;
   export function create<K, V> (map: Map<K, V>, onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>;
-  export function create<K, V> (onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>;
-  export function create<K, V> (arg0?: Map<K, V> | Manual.DemandObserver<K, V>, arg1?: Manual.DemandObserver<K, V>): Manual<K, V> {
+  export function create<K, V> (onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>; export function create<K, V> (arg0?: Map<K, V> | Manual.DemandObserver<K, V>, arg1?: Manual.DemandObserver<K, V>): Manual<K, V> {
     const [map, onDemandChanged] = isIterable(arg0) ? [arg0, arg1] : [new Map<K, V>(), arg0];
     return new ManualMapSource(map, onDemandChanged);
   }
 
   export interface EventReceiver<K, V> {
-    set? (event: Event.Set<K, V>): void;
-    delete? (event: Event.Delete<K, V>): void;
-    clear? (event: Event.Clear): void;
+    add? (entries: ReadonlyMap<K, V>): void;
+    change? (entries: ReadonlyMap<K, V>): void;
+    delete? (keys: ReadonlyArray<K>): void;
     end? (): void;
     unsubscribed? (): void;
   }
+
   export class EventReceiverAdapter<K, V> implements Receiver<K, V> {
     constructor (private readonly receiver: EventReceiver<K, V>) {}
+
     signal (event: Event<K, V>): void {
-      switch (event.kind) {
-        case 'set': this.receiver.set?.(event); break;
-        case 'delete': this.receiver.delete?.(event); break;
-        case 'clear': this.receiver.clear?.(event); break;
+      if (event.add) {
+        this.receiver.add?.(event.add);
+      }
+      if (event.change) {
+        this.receiver.change?.(event.change);
+      }
+      if (event.delete) {
+        this.receiver.delete?.(event.delete);
       }
     }
     end (): void {
@@ -134,11 +126,9 @@ export namespace MapSource {
       dispose: (itemState: TItemState, commonState: TCommonState) => void;
     };
     event?: {
-      [K in MapSource.Event<K, VA>['kind']]?: (
-        event: Extract<MapSource.Event<K, VA>, { kind: K }>,
-        itemStates: TItemState[],
-        commonState: TCommonState
-      ) => void;
+      add? (entries: ReadonlyMap<K, VA>, itemStates: TItemState[], commonState: TCommonState): void;
+      change? (entries: ReadonlyMap<K, VA>, itemStates: TItemState[], commonState: TCommonState): void;
+      delete? (keys: ReadonlyArray<K>, itemStates: TItemState[], commonState: TCommonState): void;
     };
   }
 

@@ -47,27 +47,46 @@ export class MappedMapSource<K, VA, VB> implements MapSource.Immediate<K, VB>, S
     this.#upstreamSubscription = undefined;
     this.#mappedMap = undefined;
   }
-
   signal (event: MapSource.Event<K, VA>): void {
     const map = this.#mappedMap!;
-    switch (event.kind) {
-      case 'set': {
-        const value = this.mapValue(event.value);
-        map.set(event.key, value);
-        this.#emitter.signal({ kind: 'set', key: event.key, value });
-        break;
+    
+    let mappedAdditions: Map<K, VB> | null = null;
+    let mappedChanges: Map<K, VB> | null = null;
+    let mappedDeletions: K[] | null = null;
+
+    // Handle additions
+    if (event.add) {
+      for (const [key, value] of event.add) {
+        const mappedValue = this.mapValue(value);
+        map.set(key, mappedValue);
+        (mappedAdditions ??= new Map()).set(key, mappedValue);
       }
-      case 'delete': {
-        const value = this.mapValue(event.value);
-        map.delete(event.key);
-        this.#emitter.signal({ kind: 'delete', key: event.key, value });
-        break;
+    }
+
+    // Handle changes
+    if (event.change) {
+      for (const [key, value] of event.change) {
+        const mappedValue = this.mapValue(value);
+        map.set(key, mappedValue);
+        (mappedChanges ??= new Map()).set(key, mappedValue);
       }
-      case 'clear': {
-        map.clear();
-        this.#emitter.signal({ kind: 'clear', previousSize: event.previousSize });
-        break;
+    }
+
+    // Handle deletions
+    if (event.delete) {
+      for (const key of event.delete) {
+        map.delete(key);
+        (mappedDeletions ??= []).push(key);
       }
+    }
+
+    // Emit mapped event if any changes occurred
+    if (mappedAdditions || mappedChanges || mappedDeletions) {
+      this.#emitter.signal({
+        add: mappedAdditions,
+        change: mappedChanges,
+        delete: mappedDeletions,
+      });
     }
   }
 

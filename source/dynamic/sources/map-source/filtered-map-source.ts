@@ -47,38 +47,62 @@ export class FilteredMapSource<K, V> implements MapSource.Immediate<K, V>, Subsc
     this.#upstreamSubscription = undefined;
     this.#filteredMap = undefined;
   }
-
   signal (event: MapSource.Event<K, V>): void {
     const map = this.#filteredMap!;
-    switch (event.kind) {
-      case 'set': {
-        const passes = this.testValue(event.value, event.key);
+    
+    let filteredAdditions: Map<K, V> | null = null;
+    let filteredChanges: Map<K, V> | null = null;
+    let filteredDeletions: K[] | null = null;
+
+    // Handle additions
+    if (event.add) {
+      for (const [key, value] of event.add) {
+        if (this.testValue(value, key)) {
+          map.set(key, value);
+          (filteredAdditions ??= new Map()).set(key, value);
+        }
+      }
+    }
+
+    // Handle changes
+    if (event.change) {
+      for (const [key, value] of event.change) {
+        const passes = this.testValue(value, key);
+        const wasPresent = map.has(key);
+        
         if (passes) {
-          map.set(event.key, event.value);
-          this.#emitter.signal(event);
+          map.set(key, value);
+          if (wasPresent) {
+            (filteredChanges ??= new Map()).set(key, value);
+          }
+          else {
+            (filteredAdditions ??= new Map()).set(key, value);
+          }
         }
-        else if (map.has(event.key)) {
-          const value = map.get(event.key)!;
-          map.delete(event.key);
-          this.#emitter.signal({ kind: 'delete', key: event.key, value });
+        else if (wasPresent) {
+          map.delete(key);
+          (filteredDeletions ??= []).push(key);
         }
-        break;
       }
-      case 'delete': {
-        if (map.has(event.key)) {
-          map.delete(event.key);
-          this.#emitter.signal(event);
+    }
+
+    // Handle deletions
+    if (event.delete) {
+      for (const key of event.delete) {
+        if (map.has(key)) {
+          map.delete(key);
+          (filteredDeletions ??= []).push(key);
         }
-        break;
       }
-      case 'clear': {
-        const previousSize = map.size;
-        if (previousSize > 0) {
-          map.clear();
-          this.#emitter.signal({ kind: 'clear', previousSize });
-        }
-        break;
-      }
+    }
+
+    // Emit filtered event if any changes occurred
+    if (filteredAdditions || filteredChanges || filteredDeletions) {
+      this.#emitter.signal({
+        add: filteredAdditions,
+        change: filteredChanges,
+        delete: filteredDeletions,
+      });
     }
   }
 

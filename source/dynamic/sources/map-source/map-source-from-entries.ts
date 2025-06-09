@@ -40,14 +40,24 @@ export class MapSourceFromEntries<K, V> implements MapSource<K, V>, Subscribable
     this.#upstreamSubscription = undefined;
     this.#map = undefined;
   }
-
   signal (event: ArraySource.Event<readonly [K, V]>): void {
     const map = this.#map!;
+    
+    let mapAdditions: Map<K, V> | null = null;
+    let mapChanges: Map<K, V> | null = null;
+    let mapDeletions: K[] | null = null;
+
     switch (event.kind) {
       case 'push': {
         for (const [key, value] of event.values) {
+          const wasExisting = map.has(key);
           map.set(key, value);
-          this.#emitter.signal({ kind: 'set', key, value });
+          if (wasExisting) {
+            (mapChanges ??= new Map()).set(key, value);
+          }
+          else {
+            (mapAdditions ??= new Map()).set(key, value);
+          }
         }
         break;
       }
@@ -56,36 +66,54 @@ export class MapSourceFromEntries<K, V> implements MapSource<K, V>, Subscribable
         for (let i = 0; i < deletions; i++) {
           const [key, value] = this.#upstreamSubscription!.__array[index + i];
           map.delete(key);
-          this.#emitter.signal({ kind: 'delete', key, value });
+          (mapDeletions ??= []).push(key);
         }
         for (const [key, value] of insertions) {
+          const wasExisting = map.has(key);
           map.set(key, value);
-          this.#emitter.signal({ kind: 'set', key, value });
+          if (wasExisting) {
+            (mapChanges ??= new Map()).set(key, value);
+          }
+          else {
+            (mapAdditions ??= new Map()).set(key, value);
+          }
         }
         break;
       }
       case 'set': {
         const { index, value: [key, value] } = event;
+        const wasExisting = map.has(key);
         map.set(key, value);
-        this.#emitter.signal({ kind: 'set', key, value });
+        if (wasExisting) {
+          (mapChanges ??= new Map()).set(key, value);
+        }
+        else {
+          (mapAdditions ??= new Map()).set(key, value);
+        }
         break;
       }
       case 'pop': {
         const [key, value] = this.#upstreamSubscription!.__array[this.#upstreamSubscription!.__array.length - 1];
         map.delete(key);
-        this.#emitter.signal({ kind: 'delete', key, value });
+        (mapDeletions ??= []).push(key);
         break;
       }
       case 'shift': {
         const [key, value] = this.#upstreamSubscription!.__array[0];
         map.delete(key);
-        this.#emitter.signal({ kind: 'delete', key, value });
+        (mapDeletions ??= []).push(key);
         break;
       }
       case 'unshift': {
         for (const [key, value] of event.values) {
+          const wasExisting = map.has(key);
           map.set(key, value);
-          this.#emitter.signal({ kind: 'set', key, value });
+          if (wasExisting) {
+            (mapChanges ??= new Map()).set(key, value);
+          }
+          else {
+            (mapAdditions ??= new Map()).set(key, value);
+          }
         }
         break;
       }
@@ -95,6 +123,14 @@ export class MapSourceFromEntries<K, V> implements MapSource<K, V>, Subscribable
         }
         break;
       }
+    }
+    // Emit map event if any changes occurred
+    if (mapAdditions || mapChanges || mapDeletions) {
+      this.#emitter.signal({
+        add: mapAdditions,
+        change: mapChanges,
+        delete: mapDeletions,
+      });
     }
   }
 }

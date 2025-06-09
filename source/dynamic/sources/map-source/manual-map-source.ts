@@ -22,25 +22,67 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
     const subscription = this.#emitter.subscribe(onChange, ...args);
     return new MapSourceSubscription(this, subscription);
   }
-
   set (key: K, value: V): boolean {
-    const previousSize = this.#map.size;
+    const wasExisting = this.#map.has(key);
     this.#map.set(key, value);
-    if (this.#map.size === previousSize) return false;
-    this.#emitter.signal({ kind: 'set', key, value });
+    
+    if (wasExisting) {
+      this.#emitter.signal({ add: null, change: new Map([[key, value]]), delete: null });
+    }
+    else {
+      this.#emitter.signal({ add: new Map([[key, value]]), change: null, delete: null });
+    }
     return true;
   }
+
   delete (key: K): boolean {
-    const value = this.#map.get(key)!;
     if (!this.#map.delete(key)) return false;
-    this.#emitter.signal({ kind: 'delete', key, value });
+    this.#emitter.signal({ add: null, change: null, delete: [key] });
     return true;
   }
   clear (): void {
-    const previousSize = this.#map.size;
-    if (previousSize === 0) return;
-    this.#map.clear();
-    this.#emitter.signal({ kind: 'clear', previousSize });
+    if (this.#map.size === 0) return;
+    const allKeys = Array.from(this.#map.keys());
+    this.modify(null, allKeys);
+  }
+  modify (assignments: ReadonlyMap<K, V> | null, deletions: ReadonlyArray<K> | null): void {
+    let additions: Map<K, V> | null = null;
+    let modifications: Map<K, V> | null = null;
+
+    // Categorize changes into additions vs modifications
+    if (assignments) {
+      for (const [key, value] of assignments) {
+        if (!this.#map.has(key)) {
+          (additions ??= new Map()).set(key, value);
+        }
+        else if (this.#map.get(key) !== value) {
+          (modifications ??= new Map()).set(key, value);
+        }
+      }
+      
+      for (const [key, value] of assignments) {
+        this.#map.set(key, value);
+      }
+    }
+
+    // Handle deletions if provided
+    let deletionKeys: K[] | null = null;
+    if (deletions) {
+      for (const key of deletions) {
+        if (this.#map.has(key)) {
+          this.#map.delete(key);
+          (deletionKeys ??= []).push(key);
+        }
+      }
+    }
+
+    if (additions || modifications || deletionKeys) {
+      this.#emitter.signal({
+        add: additions,
+        change: modifications,
+        delete: deletionKeys,
+      });
+    }
   }
 
   get (key: K): V | undefined { return this.#map.get(key); }

@@ -22,22 +22,33 @@ namespace MapSourceExample {
       console.log(`[${Date.now()}] The current sum is ${state.sum} (total values summed: ${sub.__map.size})`);
     }, 1000);
   }
-
   function onMapChanged (event: MapSource.Event<string, number>, state: State) {
-    switch (event.kind) {
-      case 'set': {
-        state.sum += event.value;
-        state.deltas.push(event.value);
-        break;
+    if (event.add) {
+      for (const [key, value] of event.add) {
+        state.sum += value;
+        state.deltas.push(value);
       }
-      case 'delete': {
-        state.sum -= event.value;
-        state.deltas.push(-event.value);
-        break;
+    }
+    
+    if (event.change) {
+      for (const [key, newValue] of event.change) {
+        const oldValue = state.__map.get(key);
+        if (oldValue !== undefined) {
+          state.sum -= oldValue;
+          state.deltas.push(-oldValue);
+        }
+        state.sum += newValue;
+        state.deltas.push(newValue);
       }
-      case 'clear': {
-        state.sum = 0;
-        break;
+    }
+    
+    if (event.delete) {
+      for (const key of event.delete) {
+        const oldValue = state.__map.get(key);
+        if (oldValue !== undefined) {
+          state.sum -= oldValue;
+          state.deltas.push(-oldValue);
+        }
       }
     }
   }
