@@ -2,14 +2,6 @@ import { Subscribable } from '../../core/subscribable';
 import { ArraySource } from './array-source';
 import { ArraySourceSubscription, ArraySourceTag } from './common';
 
-// export class ManualMapSource<K, V> implements InternalMapSource<K, V>, MapSource.Manual<K, V> {
-//   constructor (initialMap: Map<K, V>, onDemandChanged?: MapSource.Manual.DemandObserver<K, V>) {
-//     this.#map = initialMap;
-//     this.#emitter = onDemandChanged
-//       ? new Subscribable.Controller<[event: MapSource.Event<K, V>]>(new ManualMapSource.DemandObserverAdapter(this, onDemandChanged))
-//       : new Subscribable.Controller<[event: MapSource.Event<K, V>]>();
-//   }
-
 export class ManualArraySource<T> implements ArraySource.Manual<T> {
   constructor (initialArray: T[] = [], onDemandChanged?: ArraySource.Manual.DemandObserver<T>) {
     this.#array = initialArray;

@@ -1,4 +1,5 @@
 import { dispose } from '../../../general/disposables';
+import { isIterable } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { ArraySource } from '../array/array-source';
 import { type MapSourceTag } from './common';
@@ -7,7 +8,6 @@ import { ManualMapSource } from './manual-map-source';
 import { MapSourceFromEntries } from './map-source-from-entries';
 import { MappedMapSource } from './mapped-map-source';
 import { StatefulMappedMapSource } from './stateful-mapped-map-source';
-import { isDefined, isIterable } from '../../../general/type-checking';
 
 /**
  * To consume a `MapSource`:
@@ -48,10 +48,12 @@ export namespace MapSource {
     }
   }
 
-  export interface Manual<K, V> extends MapSource<K, V> {
+  export interface Immediate<K, V> extends MapSource<K, V> {
     readonly __map: ReadonlyMap<K, V>;
-    readonly __emitter: Subscribable.Controller.Auxiliary<[event: MapSource.Event<K, V>]>;
     readonly size: number;
+  }
+  export interface Manual<K, V> extends Immediate<K, V> {
+    readonly __emitter: Subscribable.Controller.Auxiliary<[event: MapSource.Event<K, V>]>;
 
     set (key: K, value: V): boolean;
     delete (key: K): boolean;

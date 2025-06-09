@@ -1,8 +1,8 @@
 import { Subscribable } from '../../core/subscribable';
-import { type InternalMapSource, MapSourceSubscription, MapSourceTag } from './common';
+import { MapSourceSubscription, MapSourceTag } from './common';
 import { MapSource } from './map-source';
 
-export class ManualMapSource<K, V> implements InternalMapSource<K, V>, MapSource.Manual<K, V> {
+export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSource.Manual<K, V> {
   constructor (initialMap: Map<K, V>, onDemandChanged?: MapSource.Manual.DemandObserver<K, V>) {
     this.#map = initialMap;
     this.#emitter = onDemandChanged
@@ -14,8 +14,8 @@ export class ManualMapSource<K, V> implements InternalMapSource<K, V>, MapSource
 
   get [MapSourceTag] () { return true as const; }
 
-  get __map () { return this.#map; }
   get __emitter () { return this.#emitter; }
+  get __map () { return this.#map; }
   get size () { return this.#map.size; }
 
   subscribe<A extends any[]> (onChange: Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>, ...args: A): MapSource.Subscription<K, V> {

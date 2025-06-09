@@ -23,27 +23,20 @@ export namespace AssociativeRecordSource {
     readonly __record: Readonly<Record<string, V>>;
   }
 
-  export type Event<V> = Event.Set<V> | Event.Delete | Event.Clear;
-  export namespace Event {
-    interface BaseEvent<T extends string> {
-      readonly kind: T;
-    }
-    export interface Set<V> extends BaseEvent<'set'> {
-      readonly changes: Readonly<Record<string, V>>;
-    }
-    export interface Delete extends BaseEvent<'delete'> {
-      readonly key: string;
-    }
-    export interface Clear extends BaseEvent<'clear'> {
-      readonly previousSize: number;
-    }
+  export interface Event<V> {
+    readonly add: Readonly<Record<string, V>> | null;
+    readonly change: Readonly<Record<string, V>> | null;
+    readonly delete: ReadonlyArray<string> | null;
   }
 
-  export interface Manual<V> extends AssociativeRecordSource<V> {
-    readonly __record: Record<string, V>;
+  export interface Immediate<V> extends AssociativeRecordSource<V> {
+    readonly __record: Readonly<Record<string, V>>;
+  }
+  export interface Manual<V> extends Immediate<V> {
     set (key: string, value: V): void;
-    set (changes: Record<string, V>): void;
+    set (assignments: Record<string, V> | null, deletions?: string[] | null): void;
     delete (key: string): boolean;
+    delete (keys: string[]): boolean;
     clear (): void;
   }
 

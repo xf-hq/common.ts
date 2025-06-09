@@ -31,22 +31,25 @@ namespace AssociativeRecordSourceExample {
   }
 
   function onRecordChanged (event: AssociativeRecordSource.Event<number>, state: State) {
-    switch (event.kind) {
-      case 'set': {
-        for (const key in event.changes) {
-          const value = event.changes[key];
-          state.sum += value;
-        }
-        break;
+    if (event.add) {
+      for (const key in event.add) {
+        state.sum += event.add[key];
       }
-      case 'delete': {
-        const value = state.__record[event.key];
-        state.sum -= value;
-        break;
+    }
+
+    if (event.change) {
+      for (const key in event.change) {
+        // Subtract the old value and add the new value
+        const oldValue = state.__record[key];
+        const newValue = event.change[key];
+        state.sum = state.sum - oldValue + newValue;
       }
-      case 'clear': {
-        state.sum = 0;
-        break;
+    }
+
+    if (event.delete) {
+      for (let i = 0; i < event.delete.length; i++) {
+        const key = event.delete[i];
+        state.sum -= state.__record[key];
       }
     }
   }

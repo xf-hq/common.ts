@@ -22,7 +22,3 @@ export class AssociativeRecordSourceSubscription<V> implements AssociativeRecord
     dispose(this.subscription);
   }
 }
-
-export interface InternalAssociativeRecordSource<V> extends AssociativeRecordSource<V> {
-  readonly __record: Record<string, V>;
-}

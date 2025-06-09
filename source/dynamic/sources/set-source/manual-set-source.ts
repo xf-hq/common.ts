@@ -21,21 +21,50 @@ export class ManualSetSource<T> implements SetSource.Manual<T> {
     const subscription = this.#emitter.subscribe(onChange, ...args);
     return new SetSourceSubscription(this, subscription);
   }
-
   add (value: T): void {
+    if (this.#set.has(value)) return;
     this.#set.add(value);
-    this.#emitter.signal({ kind: 'add', value });
+    this.#emitter.signal({ add: new Set([value]), delete: null });
   }
   delete (value: T): boolean {
     if (!this.#set.delete(value)) return false;
-    this.#emitter.signal({ kind: 'delete', value });
+    this.#emitter.signal({ add: null, delete: new Set([value]) });
     return true;
   }
   clear (): void {
-    const previousSize = this.#set.size;
-    if (previousSize === 0) return;
+    if (this.#set.size === 0) return;
+    const deletedValues = new Set(this.#set);
     this.#set.clear();
-    this.#emitter.signal({ kind: 'clear', previousSize });
+    this.#emitter.signal({ add: null, delete: deletedValues });
+  }
+  modify (additions?: T[] | null, deletions?: T[] | null): void {
+    let actualAdditions: Set<T> | null = null;
+    let actualDeletions: Set<T> | null = null;
+
+    // Handle additions
+    if (additions) {
+      for (let i = 0; i < additions.length; i++) {
+        const value = additions[i];
+        if (!this.#set.has(value)) {
+          this.#set.add(value);
+          (actualAdditions ??= new Set()).add(value);
+        }
+      }
+    }
+
+    // Handle deletions
+    if (deletions) {
+      for (let i = 0; i < deletions.length; i++) {
+        const value = deletions[i];
+        if (this.#set.delete(value)) {
+          (actualDeletions ??= new Set()).add(value);
+        }
+      }
+    }
+
+    if (actualAdditions || actualDeletions) {
+      this.#emitter.signal({ add: actualAdditions, delete: actualDeletions });
+    }
   }
 
   has (value: T): boolean {

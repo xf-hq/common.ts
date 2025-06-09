@@ -3,9 +3,9 @@ import { throwError } from '../../../general/errors';
 import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
 import type { AssociativeRecordSource } from './associative-record-source';
-import { AssociativeRecordSourceSubscription, AssociativeRecordSourceTag, type InternalAssociativeRecordSource } from './common';
+import { AssociativeRecordSourceSubscription, AssociativeRecordSourceTag } from './common';
 
-export class MappedAssociativeRecordSource<VA, VB> implements InternalAssociativeRecordSource<VB>, Subscribable.Receiver<[event: AssociativeRecordSource.Event<VA>]> {
+export class MappedAssociativeRecordSource<VA, VB> implements AssociativeRecordSource.Immediate<VB>, Subscribable.Receiver<[event: AssociativeRecordSource.Event<VA>]> {
   constructor (f: (a: VA) => VB, source: AssociativeRecordSource<VA>) {
     this.#f = f;
     this.#source = source;
@@ -47,31 +47,45 @@ export class MappedAssociativeRecordSource<VA, VB> implements InternalAssociativ
     this.#upstreamSubscription = undefined;
     this.#mappedRecord = undefined;
   }
-
   signal (event: AssociativeRecordSource.Event<VA>): void {
-    const record = this.#mappedRecord!;
-    switch (event.kind) {
-      case 'set': {
-        const mappedChanges: Record<string, VB> = {};
-        for (const [key, value] of Object.entries(event.changes)) {
-          mappedChanges[key] = this.mapValue(value);
+    const mappedRecord = this.#mappedRecord!;
+    let mappedAdditions: Record<string, VB> | null = null;
+    let mappedChanges: Record<string, VB> | null = null;
+    let mappedDeletions: string[] | null = null;
+
+    if (event.add) {
+      for (const key in event.add) {
+        const value = event.add[key];
+        const mappedValue = this.mapValue(value);
+        mappedRecord[key] = mappedValue;
+        (mappedAdditions ??= {})[key] = mappedValue;
+      }
+    }
+
+    if (event.change) {
+      for (const key in event.change) {
+        const value = event.change[key];
+        const mappedValue = this.mapValue(value);
+        mappedRecord[key] = mappedValue;
+        (mappedChanges ??= {})[key] = mappedValue;
+      }
+    }
+
+    if (event.delete) {
+      for (const key of event.delete) {
+        if (key in mappedRecord) {
+          delete mappedRecord[key];
+          (mappedDeletions ??= []).push(key);
         }
-        Object.assign(record, mappedChanges);
-        this.#emitter.signal({ kind: 'set', changes: mappedChanges });
-        break;
       }
-      case 'delete': {
-        delete record[event.key];
-        this.#emitter.signal({ kind: 'delete', key: event.key });
-        break;
-      }
-      case 'clear': {
-        for (const key in record) {
-          delete record[key];
-        }
-        this.#emitter.signal({ kind: 'clear', previousSize: event.previousSize });
-        break;
-      }
+    }
+
+    if (mappedAdditions || mappedChanges || mappedDeletions) {
+      this.#emitter.signal({
+        add: mappedAdditions,
+        change: mappedChanges,
+        delete: mappedDeletions,
+      });
     }
   }
 

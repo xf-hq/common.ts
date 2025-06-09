@@ -4,7 +4,10 @@ import { ValueSource } from './value-source';
 
 export interface StringSource extends ValueSource<string> {}
 export namespace StringSource {
+  export interface Receiver<A extends any[] = []> extends ValueSource.Receiver<string, A> {}
+  export interface Subscription extends ValueSource.Subscription<string> {}
   export type DemandObserver = ValueSource.DemandObserver<string>;
+  export interface Immediate extends ValueSource.Immediate<string> {}
 
   const cache = new AssociativeWeakSet<string, ValueSource<string>>();
   export function constant (value: string): ValueSource<string> {

@@ -1,8 +1,8 @@
 import { dispose } from '../../../general/disposables';
 import { isDefined } from '../../../general/type-checking';
-import { Subscribable } from '../../core/subscribable';
 import { Async } from '../../async/async';
-import { ValueSourceTag } from './common';
+import { Subscribable } from '../../core/subscribable';
+import { _initializeValueSourceSubscriber, ValueSourceTag } from './common';
 import type { ValueSource } from './value-source';
 
 export class ManualValueSource<T> implements ValueSource.Manual<T> {
@@ -26,8 +26,9 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     const finalization = this.#finalization;
     return isDefined(finalization) && finalization.finalized && finalization.result;
   }
+  get status () { return this.#emitter; }
 
-  subscribe<A extends any[]> (callback: (subscription: ValueSource.Subscription<T>, ...args: A) => ValueSource.Subscriber<T, A>, ...args: A): ValueSource.Subscription<T> {
+  subscribe<A extends any[]> (subscribe: ValueSource.SubscribeCallback<T, A> | ValueSource.Receiver<T, A>, ...args: A): ValueSource.Subscription<T> {
     const subscription = new ManualValueSource.Subscription(this);
 
     // Force the source to be in an online state before we do anything else, just in case the 'online' event would
@@ -37,8 +38,7 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     // is called, but only ends up being called _after_ the callback for the first subscriber has been invoked.
 
     this.#emitter.__incrementDemand();
-
-    const subscriber = callback(subscription, ...args);
+    const subscriber = _initializeValueSourceSubscriber(subscription, subscribe, args);
     const disposable = this.#emitter.subscribe(subscriber, ...args);
     subscription.__setDisposable(disposable);
 
@@ -47,11 +47,11 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     return subscription;
   }
 
-  set (value: T, final = false): void {
+  set (value: T, final = false): boolean {
     if (this.isFinalized) {
       throw new Error(`Cannot set value. Source has already been finalized.`);
     }
-    if (value === this.#value) return;
+    if (value === this.#value) return false;
     this.#value = value;
     // We're about to signal subscribers, and they might check whether the value is finalized, so we need to pre-set
     // isManuallyFinalized to true before signalling.
@@ -61,6 +61,7 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     // end up having to violate our own rules by telling subscribers that the value has changed after we've told them
     // that it has been finalized.
     if (final) this.finalizeInternal();
+    return true;
   }
 
   finalize () {

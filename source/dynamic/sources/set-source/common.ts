@@ -22,7 +22,3 @@ export class SetSourceSubscription<T> implements SetSource.Subscription<T> {
     dispose(this.subscription);
   }
 }
-
-export interface InternalSetSource<T> extends SetSource<T> {
-  readonly __set: ReadonlySet<T>;
-}

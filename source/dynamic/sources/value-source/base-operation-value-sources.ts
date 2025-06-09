@@ -1,9 +1,9 @@
 import { dispose } from '../../../general/disposables';
 import { bindMethod } from '../../../general/functional';
 import { isFunction, isUndefined } from '../../../general/type-checking';
-import { Subscribable } from '../../core/subscribable';
 import { Async } from '../../async/async';
-import { ValueSourceTag } from './common';
+import { Subscribable } from '../../core/subscribable';
+import { _initializeValueSourceSubscriber, ValueSourceTag } from './common';
 import { ValueSource } from './value-source';
 
 export namespace UnaryOperationSource {
@@ -33,10 +33,11 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
   get value (): B { return this.#current!.value; }
   get finalization (): Async<true> { return this.#current!.finalization; }
   get isFinalized (): boolean { return this.#current!.isFinalized; }
+  get status (): Subscribable.Status { return this.#emitter; }
 
-  subscribe<A extends any[]> (callback: (subscription: ValueSource.Subscription<B>, ...args: A) => ValueSource.Subscriber<B, A>, ...args: A): ValueSource.Subscription<B> {
+  subscribe<A extends any[]> (subscribe: ValueSource.SubscribeCallback<B, A> | ValueSource.Receiver<B, A>, ...args: A): ValueSource.Subscription<B> {
     const subscription = new InternalSource.Subscription(this);
-    const subscriber = callback(subscription, ...args);
+    const subscriber = _initializeValueSourceSubscriber(subscription, subscribe, args);
     const disposable = this.#emitter.subscribe(subscriber, ...args);
     subscription.__setDisposable(disposable);
     return subscription;
@@ -124,10 +125,11 @@ export class BinaryOperationSource<A, B = A, C = A> implements ValueSource.Immed
   get value (): C { return this.#current!.value; }
   get finalization (): Async<true> { return this.#current!.finalization; }
   get isFinalized (): boolean { return this.#current!.isFinalized; }
+  get status (): Subscribable.Status { return this.#emitter; }
 
-  subscribe<A extends any[]> (callback: (subscription: ValueSource.Subscription<C>, ...args: A) => ValueSource.Subscriber<C, A>, ...args: A): ValueSource.Subscription<C> {
+  subscribe<A extends any[]> (subscribe: ValueSource.SubscribeCallback<C, A> | ValueSource.Receiver<C, A>, ...args: A): ValueSource.Subscription<C> {
     const subscription = new InternalSource.Subscription(this);
-    const subscriber = callback(subscription, ...args);
+    const subscriber = _initializeValueSourceSubscriber(subscription, subscribe, args);
     const disposable = this.#emitter.subscribe(subscriber, ...args);
     subscription.__setDisposable(disposable);
     return subscription;

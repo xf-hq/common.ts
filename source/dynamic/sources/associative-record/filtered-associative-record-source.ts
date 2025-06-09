@@ -3,9 +3,9 @@ import { throwError } from '../../../general/errors';
 import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
 import type { AssociativeRecordSource } from './associative-record-source';
-import { AssociativeRecordSourceSubscription, AssociativeRecordSourceTag, type InternalAssociativeRecordSource } from './common';
+import { AssociativeRecordSourceSubscription, AssociativeRecordSourceTag } from './common';
 
-export class FilteredAssociativeRecordSource<V> implements InternalAssociativeRecordSource<V>, Subscribable.Receiver<[event: AssociativeRecordSource.Event<V>]> {
+export class FilteredAssociativeRecordSource<V> implements AssociativeRecordSource.Immediate<V>, Subscribable.Receiver<[event: AssociativeRecordSource.Event<V>]> {
   constructor (f: (value: V, key: string) => boolean, source: AssociativeRecordSource<V>) {
     this.#f = f;
     this.#source = source;
@@ -52,50 +52,50 @@ export class FilteredAssociativeRecordSource<V> implements InternalAssociativeRe
   }
 
   signal (event: AssociativeRecordSource.Event<V>): void {
-    const record = this.#filteredRecord!;
-    switch (event.kind) {
-      case 'set': {
-        const filteredChanges: Record<string, V> = {};
-        const deletedKeys: string[] = [];
+    const filteredRecord = this.#filteredRecord!;
+    let filteredAdditions: Record<string, V> | null = null;
+    let filteredChanges: Record<string, V> | null = null;
+    let filteredDeletions: Set<string> | null = null;
 
-        for (const [key, value] of Object.entries(event.changes)) {
-          const passes = this.testValue(value, key);
-          if (passes) {
-            filteredChanges[key] = value;
-          }
-          else if (key in record) {
-            deletedKeys.push(key);
-          }
+    if (event.add) {
+      for (const key in event.add) {
+        const value = event.add[key];
+        if (this.testValue(value, key)) {
+          filteredRecord[key] = value;
+          (filteredAdditions ??= {})[key] = value;
         }
+      }
+    }
 
-        if (Object.keys(filteredChanges).length > 0) {
-          Object.assign(record, filteredChanges);
-          this.#emitter.signal({ kind: 'set', changes: filteredChanges });
+    if (event.change) {
+      for (const key in event.change) {
+        const value = event.change[key];
+        if (this.testValue(value, key)) {
+          filteredRecord[key] = value;
+          (filteredChanges ??= {})[key] = value;
         }
+        else if (key in filteredRecord) {
+          delete filteredRecord[key];
+          (filteredDeletions ??= new Set()).add(key);
+        }
+      }
+    }
 
-        for (const key of deletedKeys) {
-          delete record[key];
-          this.#emitter.signal({ kind: 'delete', key });
+    if (event.delete) {
+      for (const key of event.delete) {
+        if (key in filteredRecord) {
+          delete filteredRecord[key];
+          (filteredDeletions ??= new Set()).add(key);
         }
-        break;
       }
-      case 'delete': {
-        if (event.key in record) {
-          delete record[event.key];
-          this.#emitter.signal(event);
-        }
-        break;
-      }
-      case 'clear': {
-        const previousSize = Object.keys(record).length;
-        if (previousSize > 0) {
-          for (const key in record) {
-            delete record[key];
-          }
-          this.#emitter.signal({ kind: 'clear', previousSize });
-        }
-        break;
-      }
+    }
+
+    if (filteredAdditions || filteredChanges || filteredDeletions) {
+      this.#emitter.signal({
+        add: filteredAdditions,
+        change: filteredChanges,
+        delete: filteredDeletions ? [...filteredDeletions] : null,
+      });
     }
   }
 

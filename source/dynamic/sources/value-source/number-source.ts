@@ -3,7 +3,10 @@ import { ValueSource } from './value-source';
 
 export interface NumberSource extends ValueSource<number> {}
 export namespace NumberSource {
+  export interface Receiver<A extends any[] = []> extends ValueSource.Receiver<number, A> {}
+  export interface Subscription extends ValueSource.Subscription<number> {}
   export type DemandObserver = ValueSource.DemandObserver<number>;
+  export interface Immediate extends ValueSource.Immediate<number> {}
 
   export function constant (value: number): ValueSource<number> {
     switch (value) {

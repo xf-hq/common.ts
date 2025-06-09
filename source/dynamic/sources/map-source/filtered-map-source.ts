@@ -2,10 +2,10 @@ import { dispose } from '../../../general/disposables';
 import { throwError } from '../../../general/errors';
 import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
-import { type InternalMapSource, MapSourceSubscription, MapSourceTag } from './common';
+import { MapSourceSubscription, MapSourceTag } from './common';
 import { MapSource } from './map-source';
 
-export class FilteredMapSource<K, V> implements InternalMapSource<K, V>, Subscribable.Receiver<[event: MapSource.Event<K, V>]> {
+export class FilteredMapSource<K, V> implements MapSource.Immediate<K, V>, Subscribable.Receiver<[event: MapSource.Event<K, V>]> {
   constructor (f: (value: V, key: K) => boolean, source: MapSource<K, V>) {
     this.#f = f;
     this.#source = source;
@@ -20,6 +20,7 @@ export class FilteredMapSource<K, V> implements InternalMapSource<K, V>, Subscri
 
   /** @internal */
   get __map () { return this.#filteredMap ??= throwError('Internal map not initialized.'); }
+  get size () { return this.__map.size; }
 
   subscribe<A extends any[]> (onChange: Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>, ...args: A): MapSource.Subscription<K, V> {
     const subscription = this.#emitter.subscribe(onChange, ...args);

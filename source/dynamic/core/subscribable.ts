@@ -7,7 +7,13 @@ export interface Subscribable<TEventArgs extends unknown[] = unknown[]> {
   subscribe<TRefArgs extends any[] = []> (subscriber: Subscribable.Subscriber<TEventArgs, TRefArgs>, ...args: TRefArgs): DisposableFunction;
 }
 export namespace Subscribable {
-  export class Controller<TEventArgs extends unknown[] = unknown[]> implements Subscribable<TEventArgs> {
+  export interface Status {
+    readonly demandExists: boolean;
+    readonly subscriberCount: number;
+    readonly isEnded: boolean;
+  }
+
+  export class Controller<TEventArgs extends unknown[] = unknown[]> implements Subscribable<TEventArgs>, Status {
     constructor (onDemandChanged?: DemandObserver<TEventArgs>) {
       this.#onDemandChanged = onDemandChanged;
     }

@@ -22,7 +22,3 @@ export class MapSourceSubscription<K, V> implements MapSource.Subscription<K, V>
     dispose(this.subscription);
   }
 }
-
-export interface InternalMapSource<K, V> extends MapSource<K, V> {
-  readonly __map: Map<K, V>;
-}

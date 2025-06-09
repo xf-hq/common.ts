@@ -38,6 +38,12 @@ export function tryDisposeProperties (props: SRecord.Of<LooseDisposable> | Nothi
     Internal.tryDispose(props[key]);
   }
 }
+export function disposeOnAbort<T extends LooseDisposable> (abortSignal: AbortSignal, disposable: T): T {
+  abortSignal.addEventListener('abort', () => {
+    tryDispose(disposable);
+  });
+  return disposable;
+}
 
 const finalizer = new FinalizationRegistry(dispose);
 export function registerForAutomaticDisposal (disposable: Disposable): void;

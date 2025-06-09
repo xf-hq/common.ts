@@ -83,9 +83,11 @@ export namespace ArraySource {
     },
   };
 
-  export interface Manual<T> extends ArraySource<T> {
-    readonly __array: T[];
+  export interface Immediate<T> extends ArraySource<T> {
+    readonly __array: readonly T[];
     readonly length: number;
+  }
+  export interface Manual<T> extends Immediate<T> {
     push (...values: T[]): void;
     pop (): T | undefined;
     unshift (...values: T[]): void;
