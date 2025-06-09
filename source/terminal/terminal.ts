@@ -3,7 +3,7 @@ import { multiplyHSL } from '../color/color-functions';
 import { StaticColor } from '../color/static-color';
 import type { ConsoleLogger } from '../facilities/logging';
 import { isPlainObject, isString, isUndefined } from '../general/type-checking';
-import { amber800, brown, brown700, colorizer, gray, gray400, gray700, gray800, lightBlue, lightBlue300, lime, orange, orange700, pink200, purple, red, red700, teal, yellow400 } from './colorizers';
+import { amber800, brown, brown700, colorizer, gray, gray400, gray700, gray800, gray900, lightBlue, lightBlue300, lime, orange, orange700, pink200, purple, red, red700, teal, yellow400 } from './colorizers';
 
 const SLATE = StaticColor.fromHex('#66757f');
 const slate = colorizer(SLATE.hex);
@@ -26,10 +26,16 @@ export namespace terminal {
     const icon = options.icon ? `${options.icon} ` : '';
     if (tag) {
       const _tag = brightColor(tag ?? '');
-      return (callerName: string, message: string, ...args: any[]) => log(subduedColor(`${icon}${_tag} | [${brightColor(callerName)}] ${defaultColor(String(message))}`), ...args);
+      return (callerName: string | null, message: string, ...args: any[]) => {
+        const callerNamePrefix = callerName ? `${brightColor(callerName)} | ` : '';
+        log(subduedColor(`${icon}${_tag} | ${callerNamePrefix}${defaultColor(String(message))}`), ...args);
+      };
     }
     else {
-      return (callerName: string, message: string, ...args: any[]) => log(subduedColor(`${icon}${brightColor(callerName)} | ${defaultColor(String(message))}`), ...args);
+      return (callerName: string | null, message: string, ...args: any[]) => {
+        const callerNamePrefix = callerName ? `${brightColor(callerName)} | ` : '';
+        log(subduedColor(`${icon}${callerNamePrefix}${defaultColor(String(message))}`), ...args);
+      };
     }
   };
 
@@ -38,7 +44,7 @@ export namespace terminal {
 
   const errorDefault = taggedConsoleLogger({ defaultColor: red });
   const errorGrouped = taggedConsoleLogger({ defaultColor: red, log: console.group });
-  export function error (callerName: string, message: string | Error, ...args: any[]) {
+  export function error (callerName: string | null, message: string | Error, ...args: any[]) {
     if (message instanceof Error) {
       const error = message;
       message = error.message;
@@ -61,7 +67,7 @@ export namespace terminal {
   export const warn = taggedConsoleLogger({ defaultColor: orange700, brightColor: orange700, icon: '⚠️', log: console.warn });
   export const info = taggedConsoleLogger({ defaultColor: lightBlue, log: console.info });
   export const good = taggedConsoleLogger({ defaultColor: lime, log: console.info });
-  export const boring = taggedConsoleLogger({ defaultColor: brown, brightColor: brown, subduedColor: brown700, log: console.info });
+  export const boring = taggedConsoleLogger({ defaultColor: gray700, brightColor: gray, subduedColor: gray900, log: console.info });
   export const verbose = taggedConsoleLogger({ defaultColor: slate, brightColor: slateBright, subduedColor: slateSubdued, log: console.info });
   export const log = taggedConsoleLogger({ defaultColor: gray400, log: console.log });
   export const debug = taggedConsoleLogger({ defaultColor: yellow400, log: console.debug });
@@ -91,14 +97,14 @@ export namespace terminal {
         console.log(formatKey(key), value);
       }
     };
-    return (callerName: string, message: string, fields?: SRecord) => {
+    return (callerName: string | null, message: string, fields?: SRecord) => {
       if (!isPlainObject(fields)) return isUndefined(fields) ? log(callerName, message) : log(callerName, message, fields);
       group(callerName, message);
       logPlainObject(fields!);
       groupEnd();
     };
   })();
-  export const group = Object.assign(taggedConsoleLogger({ defaultColor: gray700, log: console.group }), {
+  export const group = Object.assign(taggedConsoleLogger({ defaultColor: gray700, brightColor: gray700, log: console.group }), {
     warn: taggedConsoleLogger({ defaultColor: orange, log: console.group }),
   });
   export const groupEnd = console.groupEnd;
@@ -108,8 +114,8 @@ export namespace terminal {
     (callerName: string | { readonly name: string }): ConsoleLogger;
     // forModule (importMetaUrl: string): Logger;
   }
-  const getCallerName = (caller: string | { readonly name: string }) => isString(caller) ? caller : caller.name;
-  export const logger: LoggerFactory = Object.assign((caller: string | { readonly name: string }): ConsoleLogger => ({
+  const getCallerName = (caller?: string | { readonly name: string }) => isString(caller) ? caller : caller?.name ?? null;
+  export const logger: LoggerFactory = Object.assign((caller?: string | { readonly name: string }): ConsoleLogger => ({
     fatal: (message: string, ...args: any[]) => error(getCallerName(caller), message, ...args),
     error: (message: string | Error, ...args: any[]) => error(getCallerName(caller), message, ...args),
     critical: (message: string, ...args: any[]) => critical(getCallerName(caller), message, ...args),
