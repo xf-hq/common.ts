@@ -12,13 +12,13 @@ export interface SetSource<T> {
 export namespace SetSource {
   export type Receiver<T, A extends any[] = []> = Subscribable.Receiver<[event: SetSource.Event<T>], A>;
   export type Subscriber<T, A extends any[] = []> = Subscribable.Subscriber<[event: SetSource.Event<T>], A>;
-
   export interface Subscription<T> extends Disposable {
     readonly __set: ReadonlySet<T>;
   }
+
   export interface Event<T> {
-    readonly add: ReadonlySet<T> | null;
-    readonly delete: ReadonlySet<T> | null;
+    readonly add: ReadonlyArray<T> | null;
+    readonly delete: ReadonlyArray<T> | null;
   }
   export interface Immediate<T> extends SetSource<T> {
     readonly __set: ReadonlySet<T>;
@@ -28,7 +28,7 @@ export namespace SetSource {
     add (value: T): void;
     delete (value: T): boolean;
     clear (): void;
-    modify (additions?: T[] | null, deletions?: T[] | null): void;
+    modify (additions: ReadonlyArray<T>, deletions: ReadonlyArray<T>): void;
 
     has (value: T): boolean;
     values (): Iterable<T>;
@@ -49,15 +49,23 @@ export namespace SetSource {
     const [set, onDemandChanged] = isIterable(arg0) ? [arg0, arg1] : [new Set<T>(), arg0];
     return new ManualSetSource(set, onDemandChanged);
   }
+
   export interface EventReceiver<T> {
-    change? (event: Event<T>): void;
+    add? (values: ReadonlyArray<T>): void;
+    delete? (values: ReadonlyArray<T>): void;
     end? (): void;
     unsubscribed? (): void;
   }
+
   export class EventReceiverAdapter<T> implements Receiver<T> {
     constructor (private readonly receiver: EventReceiver<T>) {}
     signal (event: Event<T>): void {
-      this.receiver.change?.(event);
+      if (event.add) {
+        this.receiver.add?.(event.add);
+      }
+      if (event.delete) {
+        this.receiver.delete?.(event.delete);
+      }
     }
     end (): void {
       this.receiver.end?.();
@@ -66,6 +74,7 @@ export namespace SetSource {
       this.receiver.unsubscribed?.();
     }
   }
+
   export function subscribe<T> (source: SetSource<T>, receiver: EventReceiver<T>): Subscription<T> {
     return source.subscribe(new EventReceiverAdapter(receiver));
   }

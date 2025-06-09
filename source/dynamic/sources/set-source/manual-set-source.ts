@@ -16,52 +16,46 @@ export class ManualSetSource<T> implements SetSource.Manual<T> {
 
   get __set () { return this.#set; }
   get size () { return this.#set.size; }
-
   subscribe<A extends any[]> (onChange: SetSource.Subscriber<T, A>, ...args: A): SetSource.Subscription<T> {
     const subscription = this.#emitter.subscribe(onChange, ...args);
     return new SetSourceSubscription(this, subscription);
   }
+
   add (value: T): void {
     if (this.#set.has(value)) return;
     this.#set.add(value);
-    this.#emitter.signal({ add: new Set([value]), delete: null });
+    this.#emitter.signal({ add: [value], delete: null });
   }
   delete (value: T): boolean {
     if (!this.#set.delete(value)) return false;
-    this.#emitter.signal({ add: null, delete: new Set([value]) });
+    this.#emitter.signal({ add: null, delete: [value] });
     return true;
   }
   clear (): void {
     if (this.#set.size === 0) return;
-    const deletedValues = new Set(this.#set);
-    this.#set.clear();
-    this.#emitter.signal({ add: null, delete: deletedValues });
+    const allValues = Array.from(this.#set);
+    this.modify([], allValues);
   }
-  modify (additions?: T[] | null, deletions?: T[] | null): void {
-    let actualAdditions: Set<T> | null = null;
-    let actualDeletions: Set<T> | null = null;
+  modify (additions: ReadonlyArray<T>, deletions: ReadonlyArray<T>): void {
+    let actualAdditions: T[] | null = null;
+    let actualDeletions: T[] | null = null;
 
-    // Handle additions
-    if (additions) {
-      for (let i = 0; i < additions.length; i++) {
-        const value = additions[i];
-        if (!this.#set.has(value)) {
-          this.#set.add(value);
-          (actualAdditions ??= new Set()).add(value);
-        }
+    // Process deletions first
+    for (const value of deletions) {
+      if (this.#set.delete(value)) {
+        (actualDeletions ??= []).push(value);
       }
     }
 
-    // Handle deletions
-    if (deletions) {
-      for (let i = 0; i < deletions.length; i++) {
-        const value = deletions[i];
-        if (this.#set.delete(value)) {
-          (actualDeletions ??= new Set()).add(value);
-        }
+    // Process additions
+    for (const value of additions) {
+      if (!this.#set.has(value)) {
+        this.#set.add(value);
+        (actualAdditions ??= []).push(value);
       }
     }
 
+    // Emit event only if there were actual changes
     if (actualAdditions || actualDeletions) {
       this.#emitter.signal({ add: actualAdditions, delete: actualDeletions });
     }
