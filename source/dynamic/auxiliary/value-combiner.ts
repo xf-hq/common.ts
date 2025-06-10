@@ -35,7 +35,7 @@ export class ValueCombiner<T extends unknown[] = unknown[]> {
     queueMicrotask(() => {
       if (this.#dirtyNotification !== 'scheduled') return;
       this.#dirtyNotification = 'sent';
-      this.#subscriptions?.dirty?.signal();
+      this.#subscriptions?.dirty?.event();
     });
   }
 
@@ -65,7 +65,7 @@ export class ValueCombiner<T extends unknown[] = unknown[]> {
     }
     this.#dirty.clear();
     if (changed) {
-      this.#subscriptions?.changed?.signal();
+      this.#subscriptions?.changed?.event();
       return true;
     }
   }

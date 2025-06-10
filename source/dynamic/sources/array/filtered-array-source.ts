@@ -62,10 +62,10 @@ export class FilteredArraySource<T> implements ArraySource<T>, Subscribable.Rece
     this.#filteredValues = undefined;
   }
 
-  signal (event: ArraySource.Event<T>): void {
+  event (event: ArraySource.Event<T>): void {
     const filteredEvent = this.applyEvent(event);
     if (filteredEvent) {
-      this.#emitter.signal(filteredEvent);
+      this.#emitter.event(filteredEvent);
     }
   }
 

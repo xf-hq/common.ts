@@ -55,10 +55,10 @@ export class SortedArraySource<T> implements ArraySource<T>, Subscribable.Receiv
     this.#sortedValues = undefined;
   }
 
-  signal (event: ArraySource.Event<T>): void {
+  event (event: ArraySource.Event<T>): void {
     const sortedEvent = this.applyEvent(event);
     if (sortedEvent) {
-      this.#emitter.signal(sortedEvent);
+      this.#emitter.event(sortedEvent);
     }
   }
 

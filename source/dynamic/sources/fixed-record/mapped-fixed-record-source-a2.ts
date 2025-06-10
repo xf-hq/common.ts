@@ -68,11 +68,11 @@ export class MappedFixedRecordSourceA2<
 
   signalA (event: FixedRecordSource.Event<TRecordA, TEventPerFieldA>): void {
     const mappedEvent = this.applyEventA(event);
-    this.#emitter.signal(mappedEvent);
+    this.#emitter.event(mappedEvent);
   }
   signalB (event: FixedRecordSource.Event<TRecordB, TEventPerFieldB>): void {
     const mappedEvent = this.applyEventB(event);
-    this.#emitter.signal(mappedEvent);
+    this.#emitter.event(mappedEvent);
   }
 
   private applyEventA (event: FixedRecordSource.Event<TRecordA, TEventPerFieldA>): FixedRecordSource.Event<RecordMapperA2<TMap>, TEventPerFieldC> {

@@ -47,7 +47,7 @@ export class MappedMapSource<K, VA, VB> implements MapSource.Immediate<K, VB>, S
     this.#upstreamSubscription = undefined;
     this.#mappedMap = undefined;
   }
-  signal (event: MapSource.Event<K, VA>): void {
+  event (event: MapSource.Event<K, VA>): void {
     const map = this.#mappedMap!;
     
     let mappedAdditions: Map<K, VB> | null = null;
@@ -82,7 +82,7 @@ export class MappedMapSource<K, VA, VB> implements MapSource.Immediate<K, VB>, S
 
     // Emit mapped event if any changes occurred
     if (mappedAdditions || mappedChanges || mappedDeletions) {
-      this.#emitter.signal({
+      this.#emitter.event({
         add: mappedAdditions,
         change: mappedChanges,
         delete: mappedDeletions,

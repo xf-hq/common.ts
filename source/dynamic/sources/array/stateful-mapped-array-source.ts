@@ -65,9 +65,9 @@ export class StatefulMappedArraySource<A, B, S, C> implements ArraySource<B>, Su
     this.#mappedArray = undefined;
   }
 
-  signal (event: ArraySource.Event<A>): void {
+  event (event: ArraySource.Event<A>): void {
     const mappedEvent = this.applyEvent(event);
-    this.#emitter.signal(mappedEvent);
+    this.#emitter.event(mappedEvent);
     if (this.#disposalQueue.length === 0) return;
     const disposalQueue = [...this.#disposalQueue];
     this.#disposalQueue.length = 0;

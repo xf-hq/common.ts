@@ -56,7 +56,7 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     // We're about to signal subscribers, and they might check whether the value is finalized, so we need to pre-set
     // isManuallyFinalized to true before signalling.
     if (final) this.#isManuallyFinalized = true;
-    this.#emitter?.signal(value);
+    this.#emitter?.event(value);
     // We trigger the actual finalization event only after the change signal has been emitted (above), otherwise we'll
     // end up having to violate our own rules by telling subscribers that the value has changed after we've told them
     // that it has been finalized.

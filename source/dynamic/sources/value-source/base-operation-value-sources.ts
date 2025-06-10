@@ -33,7 +33,7 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
   get value (): B { return this.#current!.value; }
   get finalization (): Async<true> { return this.#current!.finalization; }
   get isFinalized (): boolean { return this.#current!.isFinalized; }
-  get status (): Subscribable.Status { return this.#emitter; }
+  get status (): Subscribable.DemandStatus { return this.#emitter; }
 
   subscribe<A extends any[]> (subscribe: ValueSource.SubscribeCallback<B, A> | ValueSource.Receiver<B, A>, ...args: A): ValueSource.Subscription<B> {
     const subscription = new InternalSource.Subscription(this);
@@ -66,7 +66,7 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
     const updatedValue = this.#driver.compute(value);
     if (updatedValue === this.#current!.value) return;
     this.#current!.value = updatedValue;
-    this.#emitter.signal(updatedValue);
+    this.#emitter.event(updatedValue);
   }
 
   __onEnd () {
@@ -76,7 +76,7 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
 export namespace UnaryOperationSource {
   export class UpstreamReceiver<A> implements Subscribable.Receiver<[value: A]> {
     constructor (private readonly source: UnaryOperationSource<A, any>) {}
-    signal (value: A): void { this.source.__onSignal(value); }
+    event (value: A): void { this.source.__onSignal(value); }
     end (): void { this.source.__onEnd(); }
   }
 }
@@ -125,7 +125,7 @@ export class BinaryOperationSource<A, B = A, C = A> implements ValueSource.Immed
   get value (): C { return this.#current!.value; }
   get finalization (): Async<true> { return this.#current!.finalization; }
   get isFinalized (): boolean { return this.#current!.isFinalized; }
-  get status (): Subscribable.Status { return this.#emitter; }
+  get status (): Subscribable.DemandStatus { return this.#emitter; }
 
   subscribe<A extends any[]> (subscribe: ValueSource.SubscribeCallback<C, A> | ValueSource.Receiver<C, A>, ...args: A): ValueSource.Subscription<C> {
     const subscription = new InternalSource.Subscription(this);
@@ -181,19 +181,19 @@ export class BinaryOperationSource<A, B = A, C = A> implements ValueSource.Immed
     const updatedValue = this.#driver.compute(left, right);
     if (updatedValue === this.#current!.value) return;
     this.#current!.value = updatedValue;
-    this.#emitter.signal(updatedValue);
+    this.#emitter.event(updatedValue);
   }
 }
 
 export namespace BinaryOperationSource {
   export class LeftReceiver<A> implements Subscribable.Receiver<[value: A]> {
     constructor (private readonly source: BinaryOperationSource<A, any, any>) {}
-    signal (value: A): void { this.source.__onLeftSignal(value); }
+    event (value: A): void { this.source.__onLeftSignal(value); }
     end (): void { this.source.__onLeftEnd(); }
   }
   export class RightReceiver<B> implements Subscribable.Receiver<[value: B]> {
     constructor (private readonly source: BinaryOperationSource<any, B, any>) {}
-    signal (value: B): void { this.source.__onRightSignal(value); }
+    event (value: B): void { this.source.__onRightSignal(value); }
     end (): void { this.source.__onRightEnd(); }
   }
 }

@@ -31,7 +31,7 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
       this.#bufferedEvents!.push(event);
     }
     else {
-      this.#emitter.signal(event);
+      this.#emitter.event(event);
     }
   }
 
@@ -76,8 +76,8 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
       this.#bufferedEvents = undefined;
       switch (events.length) {
         case 0: break;
-        case 1: this.#emitter.signal(events[0]); break;
-        default: this.#emitter.signal({ kind: 'batch', events });
+        case 1: this.#emitter.event(events[0]); break;
+        default: this.#emitter.event({ kind: 'batch', events });
       }
     }
   }

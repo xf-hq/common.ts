@@ -67,9 +67,9 @@ export class StatefulMappedMapSource<K, VA, VB, S, C> implements MapSource.Immed
     this.#mappedMap = undefined;
   }
 
-  signal (event: MapSource.Event<K, VA>): void {
+  event (event: MapSource.Event<K, VA>): void {
     const mappedEvent = this.applyEvent(event);
-    this.#emitter.signal(mappedEvent);
+    this.#emitter.event(mappedEvent);
     if (this.#disposalQueue.length === 0) return;
     const disposalQueue = [...this.#disposalQueue];
     this.#disposalQueue.length = 0;

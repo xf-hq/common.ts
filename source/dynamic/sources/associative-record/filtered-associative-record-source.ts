@@ -51,7 +51,7 @@ export class FilteredAssociativeRecordSource<V> implements AssociativeRecordSour
     this.#filteredRecord = undefined;
   }
 
-  signal (event: AssociativeRecordSource.Event<V>): void {
+  event (event: AssociativeRecordSource.Event<V>): void {
     const filteredRecord = this.#filteredRecord!;
     let filteredAdditions: Record<string, V> | null = null;
     let filteredChanges: Record<string, V> | null = null;
@@ -91,7 +91,7 @@ export class FilteredAssociativeRecordSource<V> implements AssociativeRecordSour
     }
 
     if (filteredAdditions || filteredChanges || filteredDeletions) {
-      this.#emitter.signal({
+      this.#emitter.event({
         add: filteredAdditions,
         change: filteredChanges,
         delete: filteredDeletions ? [...filteredDeletions] : null,

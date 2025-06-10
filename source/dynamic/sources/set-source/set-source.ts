@@ -59,7 +59,7 @@ export namespace SetSource {
 
   export class EventReceiverAdapter<T> implements Receiver<T> {
     constructor (private readonly receiver: EventReceiver<T>) {}
-    signal (event: Event<T>): void {
+    event (event: Event<T>): void {
       if (event.add) {
         this.receiver.add?.(event.add);
       }
@@ -70,7 +70,7 @@ export namespace SetSource {
     end (): void {
       this.receiver.end?.();
     }
-    terminated (): void {
+    unsubscribed (): void {
       this.receiver.unsubscribed?.();
     }
   }

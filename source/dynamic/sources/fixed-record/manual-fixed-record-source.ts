@@ -24,12 +24,12 @@ export class ManualFixedRecordSource<TRecord extends AnyRecord, TEventPerField e
   set<K extends keyof TRecord> (keyOrValues: K | Partial<TRecord>, value?: TRecord[K]): void {
     if (typeof keyOrValues === 'object') {
       Object.assign(this.#record, keyOrValues);
-      this.#emitter.signal({ kind: 'set', values: keyOrValues });
+      this.#emitter.event({ kind: 'set', values: keyOrValues });
     }
     else {
       const values = { [keyOrValues]: value } as Partial<TRecord>;
       Object.assign(this.#record, values);
-      this.#emitter.signal({ kind: 'set', values });
+      this.#emitter.event({ kind: 'set', values });
     }
   }
 

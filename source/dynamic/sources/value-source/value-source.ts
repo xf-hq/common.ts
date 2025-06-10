@@ -26,7 +26,7 @@ export interface ValueSource<T = any> {
 }
 export namespace ValueSource {
   export type SubscribeCallback<T, A extends any[]> = (subscription: Subscription<T>, ...args: A) => Subscriber<T, A>;
-  export type Subscriber<T, A extends any[]> = Receiver<T, A> | Receiver<T, A>['signal'];
+  export type Subscriber<T, A extends any[]> = Receiver<T, A> | Receiver<T, A>['event'];
   export interface Receiver<T, A extends any[]> extends Subscribable.Receiver<[value: T], A> {
     init? (subscription: Subscription<T>, ...args: A): void;
   }
@@ -80,7 +80,7 @@ export namespace ValueSource {
     get value (): T;
     get finalization (): Async<true>;
     get isFinalized (): boolean;
-    get status (): Subscribable.Status;
+    get status (): Subscribable.DemandStatus;
   }
   export interface Manual<T = unknown> extends Immediate<T> {
     set (value: T, final?: boolean): boolean;

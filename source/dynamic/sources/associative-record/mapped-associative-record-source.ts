@@ -47,7 +47,7 @@ export class MappedAssociativeRecordSource<VA, VB> implements AssociativeRecordS
     this.#upstreamSubscription = undefined;
     this.#mappedRecord = undefined;
   }
-  signal (event: AssociativeRecordSource.Event<VA>): void {
+  event (event: AssociativeRecordSource.Event<VA>): void {
     const mappedRecord = this.#mappedRecord!;
     let mappedAdditions: Record<string, VB> | null = null;
     let mappedChanges: Record<string, VB> | null = null;
@@ -81,7 +81,7 @@ export class MappedAssociativeRecordSource<VA, VB> implements AssociativeRecordS
     }
 
     if (mappedAdditions || mappedChanges || mappedDeletions) {
-      this.#emitter.signal({
+      this.#emitter.event({
         add: mappedAdditions,
         change: mappedChanges,
         delete: mappedDeletions,

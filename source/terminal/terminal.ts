@@ -4,6 +4,7 @@ import { StaticColor } from '../color/static-color';
 import type { ConsoleLogger } from '../facilities/logging';
 import { isPlainObject, isString, isUndefined } from '../general/type-checking';
 import { amber800, brown, brown700, colorizer, gray, gray400, gray700, gray800, gray900, lightBlue, lightBlue300, lime, orange, orange700, pink200, purple, red, red700, teal, yellow400 } from './colorizers';
+import { neverRegisterAsDisposed } from '../general/disposables';
 
 const SLATE = StaticColor.fromHex('#66757f');
 const slate = colorizer(SLATE.hex);
@@ -111,45 +112,35 @@ export namespace terminal {
   export const divider = () => console.log(gray700('------------------------------------------------------------------------------------------------------------------------'));
 
   export interface LoggerFactory {
-    (callerName: string | { readonly name: string }): ConsoleLogger;
+    (callerName?: string | { readonly name: string }): ConsoleLogger;
     // forModule (importMetaUrl: string): Logger;
   }
   const getCallerName = (caller?: string | { readonly name: string }) => isString(caller) ? caller : caller?.name ?? null;
-  export const logger: LoggerFactory = Object.assign((caller?: string | { readonly name: string }): ConsoleLogger => ({
-    fatal: (message: string, ...args: any[]) => error(getCallerName(caller), message, ...args),
-    error: (message: string | Error, ...args: any[]) => error(getCallerName(caller), message, ...args),
-    critical: (message: string, ...args: any[]) => critical(getCallerName(caller), message, ...args),
-    problem: (message: string, ...args: any[]) => critical(getCallerName(caller), message, ...args),
-    working: (message: string, ...args: any[]) => working(getCallerName(caller), message, ...args),
-    good: (message: string, ...args: any[]) => good(getCallerName(caller), message, ...args),
-    boring: (message: string, ...args: any[]) => boring(getCallerName(caller), message, ...args),
-    info: (message: string, ...args: any[]) => info(getCallerName(caller), message, ...args),
-    default: (message: string, ...args: any[]) => log(getCallerName(caller), message, ...args),
-    verbose: (message: string, ...args: any[]) => verbose(getCallerName(caller), message, ...args),
-    debug: (message: string, ...args: any[]) => debug(getCallerName(caller), message, ...args),
-    warn: (message: string, ...args: any[]) => warn(getCallerName(caller), message, ...args),
-    trace: (message: string, ...args: any[]) => trace(getCallerName(caller), message, ...args),
-    todo: (message: string, fields?: SRecord) => todo(getCallerName(caller), message, fields),
-    object: (value: any) => console.dir(value, { depth: null }),
-    group: Object.assign((message: string, ...args: any[]) => group(getCallerName(caller), message, ...args), {
-      warn: (message: string, ...args: any[]) => group.warn(getCallerName(caller), message, ...args),
-    }),
-    groupEnd,
-    divider,
-  }), {
-    // forModule (importMetaUrl: string): Logger {
-    //   let callerName: string | undefined;
-
-    //   return logger({
-    //     get name (): string {
-    //       if (isUndefined(callerName)) {
-    //         const rootDir = Path.resolve(ProcessEnv.PackageJsonDir, 'source');
-    //         const modulePath = Path.relative(rootDir, Url.fileURLToPath(importMetaUrl)).replace('\\', '/');
-    //         callerName = modulePath;
-    //       }
-    //       return callerName;
-    //     },
-    //   });
-    // },
-  });
+  export const logger: LoggerFactory = (caller?: string | { readonly name: string }): ConsoleLogger => {
+    const logger: ConsoleLogger = {
+      fatal: (message: string, ...args: any[]) => error(getCallerName(caller), message, ...args),
+      error: (message: string | Error, ...args: any[]) => error(getCallerName(caller), message, ...args),
+      critical: (message: string, ...args: any[]) => critical(getCallerName(caller), message, ...args),
+      problem: (message: string, ...args: any[]) => critical(getCallerName(caller), message, ...args),
+      working: (message: string, ...args: any[]) => working(getCallerName(caller), message, ...args),
+      good: (message: string, ...args: any[]) => good(getCallerName(caller), message, ...args),
+      boring: (message: string, ...args: any[]) => boring(getCallerName(caller), message, ...args),
+      info: (message: string, ...args: any[]) => info(getCallerName(caller), message, ...args),
+      default: (message: string, ...args: any[]) => log(getCallerName(caller), message, ...args),
+      verbose: (message: string, ...args: any[]) => verbose(getCallerName(caller), message, ...args),
+      debug: (message: string, ...args: any[]) => debug(getCallerName(caller), message, ...args),
+      warn: (message: string, ...args: any[]) => warn(getCallerName(caller), message, ...args),
+      trace: (message: string, ...args: any[]) => trace(getCallerName(caller), message, ...args),
+      todo: (message: string, fields?: SRecord) => todo(getCallerName(caller), message, fields),
+      object: (value: any) => console.dir(value, { depth: null }),
+      group: Object.assign((message: string, ...args: any[]) => group(getCallerName(caller), message, ...args), {
+        warn: (message: string, ...args: any[]) => group.warn(getCallerName(caller), message, ...args),
+        endOnDispose: () => GROUP_END,
+      }),
+      groupEnd,
+      divider,
+    };
+    const GROUP_END: Disposable = neverRegisterAsDisposed({ [Symbol.dispose]: () => logger.groupEnd() });
+    return logger;
+  };
 }

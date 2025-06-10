@@ -1,3 +1,5 @@
+import { neverRegisterAsDisposed, noopDispose } from '../general/disposables';
+
 export interface ConsoleLogger {
   /** For when we want to indicate that a process-ending event has occurred that is not necessarily the result of an error having been thrown. */
   fatal: (message: string, ...args: any[]) => void;
@@ -32,11 +34,39 @@ export interface ConsoleLogger {
   group: {
     (message: string, ...args: any[]): void;
     warn: (message: string, ...args: any[]) => void;
+    endOnDispose: (message: string, ...args: any[]) => Disposable;
   };
   groupEnd: () => void;
   divider: () => void;
 }
 
+export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
+  fatal: () => {},
+  error: () => {},
+  critical: () => {},
+  problem: () => {},
+  working: () => {},
+  good: () => {},
+  boring: () => {},
+  info: () => {},
+  default: () => {},
+  verbose: () => {},
+  debug: () => {},
+  warn: () => {},
+  trace: () => {},
+  todo: () => {},
+  object: () => {},
+  group: Object.assign(() => {}, {
+    warn: () => {},
+    endOnDispose: () => noopDispose,
+  }),
+  groupEnd: () => {},
+  divider: () => {},
+};
+
+const DEFAULT_GROUP_END: Disposable = neverRegisterAsDisposed({
+  [Symbol.dispose] () { console.groupEnd(); },
+});
 export const DEFAULT_CONSOLE_LOGGER = new class DefaultConsoleLogger implements ConsoleLogger {
   fatal = console.error;
   error = console.error;
@@ -62,6 +92,10 @@ export const DEFAULT_CONSOLE_LOGGER = new class DefaultConsoleLogger implements 
   }, {
     warn: (message: string, ...args: any[]) => {
       console.groupCollapsed(`⚠️ ${message}`, ...args);
+    },
+    endOnDispose: (message: string, ...args: any[]) => {
+      console.group(message, ...args);
+      return DEFAULT_GROUP_END;
     },
   });
   groupEnd = () => {
@@ -107,6 +141,9 @@ export class TaggedDefaultConsoleLogger implements ConsoleLogger {
   }, {
     warn: (message: string, ...args: any[]) => {
       DEFAULT_CONSOLE_LOGGER.group.warn(`[${this.tag}] ⚠️ ${message}`, ...args);
+    },
+    endOnDispose: (message: string, ...args: any[]) => {
+      return DEFAULT_CONSOLE_LOGGER.group.endOnDispose(`[${this.tag}] ${message}`, ...args);
     },
   });
   groupEnd = () => DEFAULT_CONSOLE_LOGGER.groupEnd();

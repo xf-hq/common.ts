@@ -24,11 +24,11 @@ export class ManualSetSource<T> implements SetSource.Manual<T> {
   add (value: T): void {
     if (this.#set.has(value)) return;
     this.#set.add(value);
-    this.#emitter.signal({ add: [value], delete: null });
+    this.#emitter.event({ add: [value], delete: null });
   }
   delete (value: T): boolean {
     if (!this.#set.delete(value)) return false;
-    this.#emitter.signal({ add: null, delete: [value] });
+    this.#emitter.event({ add: null, delete: [value] });
     return true;
   }
   clear (): void {
@@ -57,7 +57,7 @@ export class ManualSetSource<T> implements SetSource.Manual<T> {
 
     // Emit event only if there were actual changes
     if (actualAdditions || actualDeletions) {
-      this.#emitter.signal({ add: actualAdditions, delete: actualDeletions });
+      this.#emitter.event({ add: actualAdditions, delete: actualDeletions });
     }
   }
 

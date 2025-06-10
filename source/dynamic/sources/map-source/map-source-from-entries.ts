@@ -40,7 +40,7 @@ export class MapSourceFromEntries<K, V> implements MapSource<K, V>, Subscribable
     this.#upstreamSubscription = undefined;
     this.#map = undefined;
   }
-  signal (event: ArraySource.Event<readonly [K, V]>): void {
+  event (event: ArraySource.Event<readonly [K, V]>): void {
     const map = this.#map!;
     
     let mapAdditions: Map<K, V> | null = null;
@@ -119,14 +119,14 @@ export class MapSourceFromEntries<K, V> implements MapSource<K, V>, Subscribable
       }
       case 'batch': {
         for (const batchEvent of event.events) {
-          this.signal(batchEvent);
+          this.event(batchEvent);
         }
         break;
       }
     }
     // Emit map event if any changes occurred
     if (mapAdditions || mapChanges || mapDeletions) {
-      this.#emitter.signal({
+      this.#emitter.event({
         add: mapAdditions,
         change: mapChanges,
         delete: mapDeletions,

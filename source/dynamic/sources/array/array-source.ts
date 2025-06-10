@@ -54,6 +54,15 @@ export namespace ArraySource {
       readonly index: number;
       readonly value: T;
     }
+    /**
+     * Events of this type are to be applied in the order they are specified; events appearing later in the array may
+     * assume an array state that is not reflected by the target array if applied out of order.
+     * @remarks
+     * Batch events are generally intended for use only where multiple events need to be grouped together that can't be
+     * simplified into a more appropriate event (e.g. it could be used to capture multiple non-contiguous splice
+     * operations). If you're just batching multiple events that could be flattened to a single event, you're likely
+     * "doing it wrong", so to speak.
+     */
     export interface Batch<T> extends BaseEvent<'batch'> {
       readonly events: Event<T>[];
     }
@@ -63,7 +72,7 @@ export namespace ArraySource {
     if (!isFunction(subscriber)) subscriber.end?.(...args);
   }
   function release<A extends any[]> (subscriber: Subscriber<any, A>, ...args: A): void {
-    if (!isFunction(subscriber)) subscriber.terminated?.(...args);
+    if (!isFunction(subscriber)) subscriber.unsubscribed?.(...args);
   }
 
   const EMPTY_ARRAY: readonly any[] = [];

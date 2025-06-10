@@ -47,7 +47,7 @@ export class FilteredMapSource<K, V> implements MapSource.Immediate<K, V>, Subsc
     this.#upstreamSubscription = undefined;
     this.#filteredMap = undefined;
   }
-  signal (event: MapSource.Event<K, V>): void {
+  event (event: MapSource.Event<K, V>): void {
     const map = this.#filteredMap!;
     
     let filteredAdditions: Map<K, V> | null = null;
@@ -98,7 +98,7 @@ export class FilteredMapSource<K, V> implements MapSource.Immediate<K, V>, Subsc
 
     // Emit filtered event if any changes occurred
     if (filteredAdditions || filteredChanges || filteredDeletions) {
-      this.#emitter.signal({
+      this.#emitter.event({
         add: filteredAdditions,
         change: filteredChanges,
         delete: filteredDeletions,

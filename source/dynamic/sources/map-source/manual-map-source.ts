@@ -27,17 +27,17 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
     this.#map.set(key, value);
     
     if (wasExisting) {
-      this.#emitter.signal({ add: null, change: new Map([[key, value]]), delete: null });
+      this.#emitter.event({ add: null, change: new Map([[key, value]]), delete: null });
     }
     else {
-      this.#emitter.signal({ add: new Map([[key, value]]), change: null, delete: null });
+      this.#emitter.event({ add: new Map([[key, value]]), change: null, delete: null });
     }
     return true;
   }
 
   delete (key: K): boolean {
     if (!this.#map.delete(key)) return false;
-    this.#emitter.signal({ add: null, change: null, delete: [key] });
+    this.#emitter.event({ add: null, change: null, delete: [key] });
     return true;
   }
   clear (): void {
@@ -77,7 +77,7 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
     }
 
     if (additions || modifications || deletionKeys) {
-      this.#emitter.signal({
+      this.#emitter.event({
         add: additions,
         change: modifications,
         delete: deletionKeys,

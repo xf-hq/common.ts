@@ -29,10 +29,10 @@ export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource
       this.#record[key] = value;
 
       if (wasExisting) {
-        this.#emitter.signal({ add: null, change: { [key]: value }, delete: null });
+        this.#emitter.event({ add: null, change: { [key]: value }, delete: null });
       }
       else {
-        this.#emitter.signal({ add: { [key]: value }, change: null, delete: null });
+        this.#emitter.event({ add: { [key]: value }, change: null, delete: null });
       }
     }
     else {
@@ -66,7 +66,7 @@ export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource
       }
 
       if (additions || modifications || deletionKeys) {
-        this.#emitter.signal({
+        this.#emitter.event({
           add: additions,
           change: modifications,
           delete: deletionKeys,
@@ -80,7 +80,7 @@ export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource
     if (isString(arg)) {
       if (arg in this.#record) {
         delete this.#record[arg];
-        this.#emitter.signal({ add: null, change: null, delete: [arg] });
+        this.#emitter.event({ add: null, change: null, delete: [arg] });
         return true;
       }
       return false;
@@ -94,7 +94,7 @@ export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource
         }
       }
       if (deletions) {
-        this.#emitter.signal({ add: null, change: null, delete: deletions });
+        this.#emitter.event({ add: null, change: null, delete: deletions });
       }
       return deletions ? deletions.length > 0 : false;
     }
@@ -106,7 +106,7 @@ export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource
       delete this.#record[key];
     }
     if (keysToDelete.length > 0) {
-      this.#emitter.signal({ add: null, change: null, delete: keysToDelete });
+      this.#emitter.event({ add: null, change: null, delete: keysToDelete });
     }
   }
 }

@@ -1,19 +1,20 @@
 import { disposableFunction } from '../../general/disposables';
 import { bindMethod } from '../../general/functional';
 import { isDefined, isFunction } from '../../general/type-checking';
+import { firstElement } from '../../primitive';
 
 export interface Subscribable<TEventArgs extends unknown[] = unknown[]> {
   readonly isEnded?: boolean;
   subscribe<TRefArgs extends any[] = []> (subscriber: Subscribable.Subscriber<TEventArgs, TRefArgs>, ...args: TRefArgs): DisposableFunction;
 }
 export namespace Subscribable {
-  export interface Status {
+  export interface DemandStatus {
     readonly demandExists: boolean;
     readonly subscriberCount: number;
     readonly isEnded: boolean;
   }
 
-  export class Controller<TEventArgs extends unknown[] = unknown[]> implements Subscribable<TEventArgs>, Status {
+  export class Controller<TEventArgs extends unknown[] = unknown[]> implements Subscribable<TEventArgs>, DemandStatus {
     constructor (onDemandChanged?: DemandObserver<TEventArgs>) {
       this.#onDemandChanged = onDemandChanged;
     }
@@ -63,9 +64,9 @@ export namespace Subscribable {
     }
 
     subscribe<TRefArgs extends any[] = []> (receiver: Subscriber<TEventArgs, TRefArgs>, ...refArgs: TRefArgs): DisposableFunction {
-      if (isFunction(receiver)) receiver = { signal: receiver };
+      if (isFunction(receiver)) receiver = { event: receiver };
       this.__incrementDemand();
-      const subscription: Subscription<TEventArgs, TRefArgs> = { receiver, refArgs, terminated: false };
+      const subscription: Subscription<TEventArgs, TRefArgs> = { receiver, refArgs, unsubscribed: false };
       this.#subscriptions.push(subscription);
       this.notifyDemandChanged('subscribe', receiver);
 
@@ -78,29 +79,53 @@ export namespace Subscribable {
         this.#subscriptions.splice(index, 1);
         this.notifyDemandChanged('unsubscribe', receiver);
 
-        subscription.terminated = true;
-        if (isDefined(receiver.terminated)) receiver.terminated(...refArgs);
+        subscription.unsubscribed = true;
+        if (isDefined(receiver.unsubscribed)) receiver.unsubscribed(...refArgs);
 
         this.__decrementDemand();
       });
+    }
+
+    #hold = 0;
+    hold () {
+      if (this.#hold++ === 0) {
+        let sub: Subscription<TEventArgs, any>;
+        for (let i = 0; i < this.#subscriptions.length; i++) {
+          sub = this.#subscriptions[i];
+          if (isDefined(sub.receiver.hold)) sub.receiver.hold(...sub.refArgs);
+        }
+      }
+    }
+
+    release () {
+      if (this.#hold === 0) {
+        throw new Error(`Unexpected call to 'Subscribable.Controller.release' while no HOLD state is in effect.`);
+      }
+      if (--this.#hold === 0) {
+        let sub: Subscription<TEventArgs, any>;
+        for (let i = 0; i < this.#subscriptions.length; i++) {
+          sub = this.#subscriptions[i];
+          if (isDefined(sub.receiver.release)) sub.receiver.release(...sub.refArgs);
+        }
+      }
     }
 
     /**
      * Dispatches the specified event arguments to all active subscribers. An error will be thrown the `end` method has
      * been called previously. The `isEnded` property can be checked to determine if this is the case.
      */
-    signal (...eventArgs: TEventArgs) {
-      if (this.isEnded) throw new Error(`Cannot emit events after the controller has been ended. Check the 'isEnded' property if unsure.`);
+    event (...eventArgs: TEventArgs) {
+      if (this.isEnded) throw new Error(`Cannot emit events after an 'end' signal has been dispatched. Check the 'isEnded' property if unsure.`);
 
       let sub: Subscription<TEventArgs, any>;
       for (let i = 0; i < this.#subscriptions.length; i++) {
         sub = this.#subscriptions[i];
-        sub.receiver.signal(...eventArgs, ...sub.refArgs);
+        sub.receiver.event(...eventArgs, ...sub.refArgs);
       }
     }
 
     /**
-     * Signals that no further 'signal' events will be ever be dispatched to subscribers beyond this point. Future calls
+     * Signals that no further 'event' signals will be ever be dispatched to subscribers beyond this point. Future calls
      * to `end` will be disregarded.
      *
      * Note that new subscriptions are still possible after this point and all demand-related events sent to the
@@ -108,7 +133,7 @@ export namespace Subscribable {
      * demand event handler implementation does not track whether the `end` has been called previously (the `isEnded`
      * property is a way of checking this if it's not being tracked elsewhere). Aside from this, the only difference in
      * intrinsic behaviour after calling `end` is that new subscribers will be immediately sent an 'end' event in the
-     * next tick after they subscribe, and further attempts to emit 'signal' events will cause an error to be thrown.
+     * next tick after they subscribe, and further attempts to emit 'event' signals will cause an error to be thrown.
      */
     end () {
       if (this.isEnded) return;
@@ -134,12 +159,12 @@ export namespace Subscribable {
       this.#newSubscriptionsAwaitingEndEvents = [];
       for (let i = 0; i < newSubscriptions.length; i++) {
         const sub = newSubscriptions[i];
-        if (!sub.terminated) sub.receiver.end(...sub.refArgs);
+        if (!sub.unsubscribed) sub.receiver.end(...sub.refArgs);
       }
     }
   }
   export namespace Controller {
-    export interface Auxiliary<TEventArgs extends unknown[]> extends Omit<Controller<TEventArgs>, 'subscribe' | 'signal' | 'end'> {}
+    export interface Auxiliary<TEventArgs extends unknown[]> extends Omit<Controller<TEventArgs>, 'subscribe' | 'event' | 'end'> {}
   }
 
   export type DemandObserver<TEventArgs extends unknown[]> = DemandObserver.ListenerFunction<TEventArgs> | DemandObserver.ListenerInterface<TEventArgs>;
@@ -157,46 +182,99 @@ export namespace Subscribable {
     }
   }
 
-  export type Subscriber<TEventArgs extends unknown[], TRefArgs extends any[] = []> = Receiver<TEventArgs, TRefArgs> | Receiver<TEventArgs, TRefArgs>['signal'];
+  export type Subscriber<TEventArgs extends unknown[], TRefArgs extends any[] = []> = Receiver<TEventArgs, TRefArgs> | Receiver<TEventArgs, TRefArgs>['event'];
   export interface Receiver<TEventArgs extends unknown[], TRefArgs extends any[] = []> {
-    signal (...refArgs: [...TEventArgs, ...TRefArgs]): void;
     /**
-     * Signal: No further `signal` events will ever be received. The subscription is still active nonetheless.
+     * Signal: An upstream source that has authority to dispatch signals to the receiver has established a HOLD state.
+     * @remarks
+     * A HOLD state indicates that a synchronous operation has commenced upstream from the receiver, such that there is
+     * a chance that work done during the operation may result in the receiver being signalled multiple times in the
+     * same synchronous execution cycle.
      *
+     * Note that if a receiver implements a `hold` handler, it MUST also implement a `release` handler. Implementing
+     * a `hold` handler without a corresponding `release` handler will likely result in erroneous behaviour.
+     *
+     * When a `hold` signal is received, the receiver is encouraged to do the following:
+     *
+     * - Keep a reference count of the number `hold` signals it has received.
+     *   - Note that even if a receiver is only subscribed to a single upstream source, it should not assume that there
+     *     is only one upstream source with authority to directly signal the receiver. Sometimes an upstream source may
+     *     internally share references to its subscribers as part of its implementation, leading to a possibility of
+     *     multiple upstream sources having authority to signal the receiver. As such, always keep a reference count
+     *     even if only subscribing the receiver to a single source.
+     * - If this `hold` signal establishes a reference count of 1 (i.e. start of a new upstream operation), the receiver
+     *   should immediately forward a `hold` signal to any downstream receivers. The entire downstream graph should be
+     *   aware that an operation has begun so as to avoid propagating to descendants redundant signals that will likely
+     *   be immediately superseded in the same execution cycle once the upstream operation completes.
+     * - While the HOLD state remains in effect, the receiver should:
+     *   - minimise any work it does
+     *   - avoid propagating any further signals downstream
+     * - For each `release` signal received, the receiver should decrement its reference count.
+     * - When the reference count reaches zero, the receiver should consider the upstream operation to have completed:
+     *   - Any buffered event data and other signals recorded should be processed as a batch.
+     *   - If appropriate, dispatch a single `event` signal downstream.
+     *   - Finally, if any `end` or `unsubscribed` signals were received while the HOLD state was in effect, they should be
+     *     propagated downstream (in that order).
+     *
+     * See the {@link SignalStatus} helper class, which streamlines much of the above logic.
+     */
+    hold? (...args: TRefArgs): void;
+
+    /**
+     * Signal: An upstream source that has authority to dispatch signals to the receiver has released its HOLD state.
+     * @remarks
+     * See {@link hold} for full details on
+     */
+    release? (...args: TRefArgs): void;
+
+    /**
+      * Signal: The receiver is being notified that something occurred upstream from itself.
+      *
+      * @remarks
+      * The receiver should process the event. Though not mandatory, if a HOLD state is currently in effect, the
+      * receiver is encouraged to wait until a `release` signal is received before propagating further signals
+      * downstream.
+      */
+    event (...refArgs: [...TEventArgs, ...TRefArgs]): void;
+
+    /**
+     * Signal: No further `event` signals will ever be received. The subscription is still active nonetheless.
      * @remarks
      * Note that it is never guaranteed that an `end` event will be received. Dispatch of an `end` event is at the
      * discretion of the source's implementer.
      */
     end? (...args: TRefArgs): void;
+
     /**
      * Signal: The receiver is no longer subscribed. Work should cease and state should be cleaned up.
-     *
      * @remarks
-     * Indicates that the subscription with which the receiver is associated has been terminated. No further events will
-     * be dispatched to the receiver. Any current state or subcontextual work being maintained as part of the receiver's
-     * lifecycle should be cleaned up and any associated subprocesses terminated/aborted accordingly.
+     * Indicates that the subscription with which the receiver is associated has been disposed by the subscriber. No
+     * further events will be dispatched to the receiver. Any current state or subcontextual work being maintained as
+     * part of the receiver's lifecycle should be cleaned up and any associated subprocesses terminated/aborted
+     * accordingly.
      *
-     * The 'terminate' signal is a quality-of-life convenience that provides implementers with a way to automatically
+     * The 'unsubscribed' signal is a quality-of-life convenience that provides implementers with a way to automatically
      * clean up references that are isolated to the scope of execution of the receiver, eliminating the need to manually
-     * expose those internal references or the means to clean them up when the subscription's owner decides to terminate
-     * it.
+     * expose those internal references to the subscribing process purely for cleanup purposes when the subscription is
+     * disposed. In short, it's usually better to let a receiver clean up its own state up rather than deferring that
+     * responsibility to external code.
      *
-     * Note that unlike the 'end' signal, the 'terminate' signal is non-optional for well-behaving implementations of
+     * Note that unlike the 'end' signal, the 'unsubscribed' signal is non-optional for well-behaving implementations of
      * the `Subscribable` interface:
      *
-     * - When a subscription with which a receiver is associated is terminated, if the receiver implements `terminate`,
-     *   it must be signalled accordingly.
+     * - When a subscription with which a receiver is associated is terminated, if the receiver implements
+     *   `unsubscribed`, it must be signalled accordingly.
      * - If the source implementing `Subscribable` also implements some form of destruction mechanism (such as
-     *   `Disposable`) and that mechanism is invoked, all actively subscribed receivers that implement `terminate` must
-     *   be signalled immediately.
+     *   `Disposable`) and that mechanism is invoked, all actively subscribed receivers that implement `unsubscribed`
+     *   must be signalled immediately.
      */
-    terminated? (...args: TRefArgs): void;
+    unsubscribed? (...args: TRefArgs): void;
   }
 
   interface Subscription<TEventArgs extends unknown[], TRefArgs extends any[] = []> {
     readonly receiver: Receiver<TEventArgs, TRefArgs>;
     readonly refArgs: TRefArgs;
-    terminated: boolean;
+    unsubscribed: boolean;
   }
   interface EndableSubscription<TEventArgs extends unknown[], TRefArgs extends any[] = []> extends Subscription<TEventArgs, TRefArgs> {
     readonly receiver: SomeRequired<Receiver<TEventArgs, TRefArgs>, 'end'>;
@@ -204,24 +282,139 @@ export namespace Subscribable {
   const isEndableSubscription = (sub: Subscription<any, any>): sub is EndableSubscription<any, any> => isDefined(sub.receiver.end);
 
   /**
-   * Creates a reference-counted instance of a demand listener for scenarios where the same initialisation work has to
-   * be done if any of a set of subscribable sources comes online. An example is a pair of independent mouse coordinate
-   * sources; one for 'x' and one for 'y'. If either source comes online, the implementation would need to set up a
-   * 'mousemove' DOM event listener. Redundancy is avoided by having both sources share the same demand listener.
+   * A helper class that makes it easier for receivers to implement support for the various optional signal types that
+   * the `Subscribable.Receiver` interface defines.
+   * @remarks
+   * @see [subscribable.examples.ts](./subscribable.examples.ts)
    */
-  export function createSharedDemandListener<TEventArgs extends unknown[]> (events: { online (): void; offline (): void }): DemandObserver<TEventArgs> {
-    let refCount = 0;
-    function online () {
-      if (refCount++ === 0) events.online();
+  export class SignalStatus<TEventArgs extends unknown[] = unknown[]> {
+    #holdCount = 0;
+    #isEnded = false;
+    #isUnsubscribed = false;
+    #events?: { buffer: TEventArgs[]; flushed: 0; flushing: boolean };
+
+    private get _events () { return this.#events ??= { buffer: [], flushed: 0, flushing: false }; }
+
+    get holdCount () { return this.#holdCount; }
+    get isOnHold () { return this.#holdCount > 0; }
+    get isEnded () { return this.#isEnded; }
+    get isUnsubscribed () { return this.#isUnsubscribed; }
+
+    /**
+     * Increments the reference counter for the current HOLD state.
+     * @returns
+     *   - `true` if this is this call establishes a new HOLD state
+     *   - `false` if the call is joining an existing HOLD state
+     */
+    initiateHold (): boolean {
+      return ++this.#holdCount === 1;
     }
-    function offline () {
-      if (--refCount === 0) events.offline();
-    }
-    return (demand) => {
-      switch (demand) {
-        case 'online': online(); break;
-        case 'offline': offline(); break;
+
+    /**
+     * Decrements the reference counter for the current HOLD state.
+     * @returns
+     *  - `true` if this call ends the overall HOLD state
+     *  - `false` if the HOLD state remains in effect
+     */
+    releaseHold (): boolean {
+      if (this.#holdCount === 0) {
+        throw new Error(`Unexpected call to 'Subscribable.SignalStatus.releaseHold' while no HOLD state is in effect.`);
       }
-    };
+      return --this.#holdCount === 0;
+    }
+
+    /**
+     *
+     */
+    holdEvent (...eventArgs: TEventArgs): void {
+      if (this.#isEnded || this.#isUnsubscribed) return;
+      this._events.buffer.push(eventArgs);
+    }
+
+    /**
+     * Records the receipt of an 'end' signal.
+     */
+    holdEnd () {
+      this.#isEnded = true;
+    }
+
+    /**
+     * Records the receipt of an 'unsubscribed' signal.
+     */
+    holdUnsubscribed () {
+      this.#isUnsubscribed = true;
+    }
+
+    /**
+     * Drains any buffered events that have been recorded since the last call to this method.
+     * @remarks
+     * - If called while another `flush` operation is in progress, no events will be yielded by this call. This does not
+     *   necessarily provide a guarantee that all events will be yielded to the original caller (i.e. they could stop
+     *   iterating before reaching the end of the buffer), only that there will not be two callers flushing events from
+     *   the buffer at the same time.
+     * - If the caller stops iterating before all buffered events have been yielded, any remaining events that have not
+     *   yet been yielded will be retained at the head of the buffer and made available to the next `flush` operation.
+     * - If an event processed during a `flush` operation results in a cyclic (downstream-to-upstream) execution path
+     *   that leads back to an interjecting call to `holdEvent` on this `SignalStatus` instance, the event will be
+     *   appended to the existing buffer and will be yielded as part of the current `flush` operation, after all
+     *   existing buffered events have been yielded.
+     */
+    *flush (): Generator<TEventArgs> {
+      const events = this.#events;
+      if (!events || events.flushing) return;
+      try {
+        events.flushing = true;
+        while (events.flushed < events.buffer.length) {
+          yield events.buffer[events.flushed++];
+        }
+      }
+      finally { // <-- Ensure that the operation is concluded properly even if the caller exits the iteration loop early
+        if (events.flushed === events.buffer.length) {
+          events.buffer.length = 0; // All events have been flushed, clear the array efficiently
+        }
+        else {
+          events.buffer.splice(0, events.flushed); // Remove the flushed events from the buffer, leaving the unflushed ones intact
+        }
+        events.flushed = 0; // Reset the flushed index
+        events.flushing = false;
+      }
+    }
+
+    /**
+     * Immediately detaches all events from the buffer and resets the buffer to an empty state. The detached events are
+     * returned as an array.
+     * @remarks
+     * This operation may be safely called while a `flush` operation is in progress. If that happens, the flush iterator
+     * will skip any events that the `unbuffer` method returned.
+     */
+    unbuffer (): TEventArgs[] {
+      const events = this._events;
+      const buffer = events.buffer;
+      events.buffer = [];
+      events.flushed = 0;
+      return buffer;
+    }
+
+    peekNextEvent (): TEventArgs | undefined {
+      const events = this.#events;
+      if (events) return firstElement(events.buffer);
+    }
+  }
+
+  /**
+   * SharedDemandListener is a reference-counted demand listener intended for scenarios where, for a given set of
+   * closely related sources, whichever one of them comes online first should result in a single operation or process
+   * managing whatever state the sources rely on collectively. An example is a pair of independent mouse coordinate
+   * sources; one for 'x' and one for 'y'. If either source comes online, the implementation would need to set up a
+   * 'mousemove' DOM event listener. Efficiency dictates that both 'x' and 'y' values would be being recorded for each
+   * mousemove event received by the DOM event listener, even if only one of those values happens to be in demand.
+   * Redundancy is avoided by having both sources share the same demand listener and sample the same state where the x
+   * and y values are being recorded.
+   */
+  export class SharedDemandListener<TEventArgs extends unknown[]> implements DemandObserver.ListenerInterface<TEventArgs> {
+    #refCount = 0;
+    constructor (protected readonly handlers: { online (): void; offline (): void }) {}
+    online () { if (this.#refCount++ === 0) this.handlers.online(); }
+    offline () { if (--this.#refCount === 0) this.handlers.offline(); }
   }
 }

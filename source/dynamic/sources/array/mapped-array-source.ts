@@ -41,9 +41,9 @@ export class MappedArraySource<A, B> implements ArraySource<B>, Subscribable.Rec
     this.#mappedArray = undefined;
   }
 
-  signal (event: ArraySource.Event<A>): void {
+  event (event: ArraySource.Event<A>): void {
     const mappedEvent = this.applyEvent(event);
-    this.#emitter.signal(mappedEvent);
+    this.#emitter.event(mappedEvent);
   }
 
   private applyEvent (event: ArraySource.Event<A>): ArraySource.Event<B> {

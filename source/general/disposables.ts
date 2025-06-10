@@ -7,6 +7,22 @@ if (isUndefined(Symbol.dispose)) Object.defineProperties(Symbol, {
   asyncDispose: { value: Symbol('Symbol.asyncDispose') },
 });
 
+/**
+ * Ensures that the target disposable will never be recognised by this disposal library as having been previously
+ * disposed, which may lead to disposal calls for the target being ignored.
+ * @remarks
+ * There are certain special cases where a disposable needs to be able to be redisposed multiple times. The use case
+ * that drove the introduction of this function was the `DEFAULT_GROUP_END` object returned by
+ * `DEFAULT_CONSOLE_LOGGER.group.endOnDispose(...)`, whose usage is intended to be paired with a `using` statement.
+ * Rather than constructing a new `Disposable` object every time `endOnDispose` is called, it is more efficient to keep
+ * reusing the same object, seeing as the only effect of calling `[Symbol.dispose]()` in this case is that a call to
+ * `console.groupEnd()` is made - exactly what we want when the variable declared by `using` goes out of scope.
+ */
+export function neverRegisterAsDisposed<T extends Disposable> (target: T): T {
+  Internal.neverRegisterAsDisposed(target);
+  return target;
+}
+
 export const isDisposable = (value: any): value is Disposable => isObject(value) && isFunction(value[Symbol.dispose]);
 export const isLegacyDisposable = (value: any): value is LegacyDisposable => isFunction(value?.dispose);
 
@@ -168,8 +184,14 @@ export namespace disposableFromRecord {
 namespace Internal {
   const _registeredAsDisposed = new WeakSet<LooseDisposable.NotNothing>([NoopDisposable, noopDispose]);
   const _idempotentDisposeFunctions = new WeakSet<Dispose>([noopDispose]);
+  const _nonRegisterableDisposables = new WeakSet<Disposable>([NoopDisposable, noopDispose]);
+
   export const isRegisteredAsDisposed = (target: LooseDisposable.NotNothing): boolean => (_registeredAsDisposed).has(target);
-  export const registerAsDisposed = (target: LooseDisposable.NotNothing) => { _registeredAsDisposed.add(target); };
+  export function registerAsDisposed (target: LooseDisposable.NotNothing) {
+    if (isDisposable(target) && _nonRegisterableDisposables.has(target)) return;
+    _registeredAsDisposed.add(target);
+  }
+  export function neverRegisterAsDisposed (target: Disposable): void { _nonRegisterableDisposables.add(target); }
 
   export function tryDispose (disposable: LooseDisposable) {
     if (isNothing(disposable) || isVerifiableNoopOnDispose(disposable)) return;

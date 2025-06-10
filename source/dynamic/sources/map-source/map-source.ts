@@ -79,7 +79,7 @@ export namespace MapSource {
   export class EventReceiverAdapter<K, V> implements Receiver<K, V> {
     constructor (private readonly receiver: EventReceiver<K, V>) {}
 
-    signal (event: Event<K, V>): void {
+    event (event: Event<K, V>): void {
       if (event.add) {
         this.receiver.add?.(event.add);
       }
@@ -93,7 +93,7 @@ export namespace MapSource {
     end (): void {
       this.receiver.end?.();
     }
-    terminated (): void {
+    unsubscribed (): void {
       this.receiver.unsubscribed?.();
     }
   }
