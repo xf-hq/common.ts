@@ -180,7 +180,6 @@ export class MapSourceEntriesArraySource<K, V> implements ArraySource<[K, V]>, S
     }
 
     // Incremental Update Path
-    let rebuildMapNeeded = false;
 
     // 1. Process Deletions
     if (deleteKeys && deleteKeys.length > 0) {
@@ -201,7 +200,8 @@ export class MapSourceEntriesArraySource<K, V> implements ArraySource<[K, V]>, S
         outgoingEvents.push({ kind: 'splice', index, deletions: 1, insertions: [] });
       }
       if (indicesToDelete.length > 0) {
-        rebuildMapNeeded = true;
+        // Rebuild the keyToIndexMap immediately after deletions so changes and additions work correctly
+        this.#rebuildKeyToIndexMap();
       }
     }
 
@@ -248,10 +248,6 @@ export class MapSourceEntriesArraySource<K, V> implements ArraySource<[K, V]>, S
       if (outgoingEvents.length > 1) {
         this.#emitter.event({ kind: 'batch', events: outgoingEvents });
       }
-    }
-
-    if (rebuildMapNeeded) {
-      this.#rebuildKeyToIndexMap(); // Rebuild after all deletions, before changes and adds.
     }
   }
 }
