@@ -39,6 +39,15 @@ export interface ConsoleLogger {
   groupEnd: () => void;
   divider: () => void;
 }
+export namespace ConsoleLogger {
+  export interface Factory {
+    /**
+     * @param topic If provided, the returned logger should prefix all messages with the given topic. If a function or
+     * other object with a `name` property is provided, the logger should use the value of that property as the topic.
+     */
+    (topic?: string | { readonly name: string }): ConsoleLogger;
+  }
+}
 
 export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
   fatal: () => {},

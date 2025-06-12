@@ -2,9 +2,9 @@ import chalk from 'chalk';
 import { multiplyHSL } from '../color/color-functions';
 import { StaticColor } from '../color/static-color';
 import type { ConsoleLogger } from '../facilities/logging';
-import { isPlainObject, isString, isUndefined } from '../general/type-checking';
-import { amber800, brown, brown700, colorizer, gray, gray400, gray700, gray800, gray900, lightBlue, lightBlue300, lime, orange, orange700, pink200, purple, red, red700, teal, yellow400 } from './colorizers';
 import { neverRegisterAsDisposed } from '../general/disposables';
+import { isPlainObject, isString, isUndefined } from '../general/type-checking';
+import { amber800, colorizer, gray, gray400, gray700, gray800, gray900, lightBlue, lightBlue300, lime, orange, orange700, pink200, purple, red, red700, teal, yellow400 } from './colorizers';
 
 const SLATE = StaticColor.fromHex('#66757f');
 const slate = colorizer(SLATE.hex);
@@ -27,14 +27,14 @@ export namespace terminal {
     const icon = options.icon ? `${options.icon} ` : '';
     if (tag) {
       const _tag = brightColor(tag ?? '');
-      return (callerName: string | null, message: string, ...args: any[]) => {
-        const callerNamePrefix = callerName ? `${brightColor(callerName)} | ` : '';
+      return (topic: string | null, message: string, ...args: any[]) => {
+        const callerNamePrefix = topic ? `${brightColor(topic)} | ` : '';
         log(subduedColor(`${icon}${_tag} | ${callerNamePrefix}${defaultColor(String(message))}`), ...args);
       };
     }
     else {
-      return (callerName: string | null, message: string, ...args: any[]) => {
-        const callerNamePrefix = callerName ? `${brightColor(callerName)} | ` : '';
+      return (topic: string | null, message: string, ...args: any[]) => {
+        const callerNamePrefix = topic ? `${brightColor(topic)} | ` : '';
         log(subduedColor(`${icon}${callerNamePrefix}${defaultColor(String(message))}`), ...args);
       };
     }
@@ -45,23 +45,23 @@ export namespace terminal {
 
   const errorDefault = taggedConsoleLogger({ defaultColor: red });
   const errorGrouped = taggedConsoleLogger({ defaultColor: red, log: console.group });
-  export function error (callerName: string | null, message: string | Error, ...args: any[]) {
+  export function error (topic: string | null, message: string | Error, ...args: any[]) {
     if (message instanceof Error) {
       const error = message;
       message = error.message;
-      errorGrouped(callerName, message);
+      errorGrouped(topic, message);
       console.error(red700(error.stack));
       console.groupEnd();
       return;
     }
     if (args.length === 1 && args[0] instanceof Error) {
       const error = args[0];
-      errorGrouped(callerName, message);
+      errorGrouped(topic, message);
       console.error(red700(error.stack));
       console.groupEnd();
       return;
     }
-    errorDefault(callerName, message, ...args);
+    errorDefault(topic, message, ...args);
   }
   export const critical = taggedConsoleLogger({ defaultColor: red, log: console.error });
   export const working = taggedConsoleLogger({ defaultColor: amber800, log: console.info });
@@ -98,9 +98,9 @@ export namespace terminal {
         console.log(formatKey(key), value);
       }
     };
-    return (callerName: string | null, message: string, fields?: SRecord) => {
-      if (!isPlainObject(fields)) return isUndefined(fields) ? log(callerName, message) : log(callerName, message, fields);
-      group(callerName, message);
+    return (topic: string | null, message: string, fields?: SRecord) => {
+      if (!isPlainObject(fields)) return isUndefined(fields) ? log(topic, message) : log(topic, message, fields);
+      group(topic, message);
       logPlainObject(fields!);
       groupEnd();
     };
@@ -111,30 +111,26 @@ export namespace terminal {
   export const groupEnd = console.groupEnd;
   export const divider = () => console.log(gray700('------------------------------------------------------------------------------------------------------------------------'));
 
-  export interface LoggerFactory {
-    (callerName?: string | { readonly name: string }): ConsoleLogger;
-    // forModule (importMetaUrl: string): Logger;
-  }
-  const getCallerName = (caller?: string | { readonly name: string }) => isString(caller) ? caller : caller?.name ?? null;
-  export const logger: LoggerFactory = (caller?: string | { readonly name: string }): ConsoleLogger => {
+  export const logger: ConsoleLogger.Factory = (topic?: string | { readonly name: string }): ConsoleLogger => {
+    const getTopic = topic ? isString(topic) ? () => topic : () => topic.name : () => null;
     const logger: ConsoleLogger = {
-      fatal: (message: string, ...args: any[]) => error(getCallerName(caller), message, ...args),
-      error: (message: string | Error, ...args: any[]) => error(getCallerName(caller), message, ...args),
-      critical: (message: string, ...args: any[]) => critical(getCallerName(caller), message, ...args),
-      problem: (message: string, ...args: any[]) => critical(getCallerName(caller), message, ...args),
-      working: (message: string, ...args: any[]) => working(getCallerName(caller), message, ...args),
-      good: (message: string, ...args: any[]) => good(getCallerName(caller), message, ...args),
-      boring: (message: string, ...args: any[]) => boring(getCallerName(caller), message, ...args),
-      info: (message: string, ...args: any[]) => info(getCallerName(caller), message, ...args),
-      default: (message: string, ...args: any[]) => log(getCallerName(caller), message, ...args),
-      verbose: (message: string, ...args: any[]) => verbose(getCallerName(caller), message, ...args),
-      debug: (message: string, ...args: any[]) => debug(getCallerName(caller), message, ...args),
-      warn: (message: string, ...args: any[]) => warn(getCallerName(caller), message, ...args),
-      trace: (message: string, ...args: any[]) => trace(getCallerName(caller), message, ...args),
-      todo: (message: string, fields?: SRecord) => todo(getCallerName(caller), message, fields),
+      fatal: (message: string, ...args: any[]) => error(getTopic(), message, ...args),
+      error: (message: string | Error, ...args: any[]) => error(getTopic(), message, ...args),
+      critical: (message: string, ...args: any[]) => critical(getTopic(), message, ...args),
+      problem: (message: string, ...args: any[]) => critical(getTopic(), message, ...args),
+      working: (message: string, ...args: any[]) => working(getTopic(), message, ...args),
+      good: (message: string, ...args: any[]) => good(getTopic(), message, ...args),
+      boring: (message: string, ...args: any[]) => boring(getTopic(), message, ...args),
+      info: (message: string, ...args: any[]) => info(getTopic(), message, ...args),
+      default: (message: string, ...args: any[]) => log(getTopic(), message, ...args),
+      verbose: (message: string, ...args: any[]) => verbose(getTopic(), message, ...args),
+      debug: (message: string, ...args: any[]) => debug(getTopic(), message, ...args),
+      warn: (message: string, ...args: any[]) => warn(getTopic(), message, ...args),
+      trace: (message: string, ...args: any[]) => trace(getTopic(), message, ...args),
+      todo: (message: string, fields?: SRecord) => todo(getTopic(), message, fields),
       object: (value: any) => console.dir(value, { depth: null }),
-      group: Object.assign((message: string, ...args: any[]) => group(getCallerName(caller), message, ...args), {
-        warn: (message: string, ...args: any[]) => group.warn(getCallerName(caller), message, ...args),
+      group: Object.assign((message: string, ...args: any[]) => group(getTopic(), message, ...args), {
+        warn: (message: string, ...args: any[]) => group.warn(getTopic(), message, ...args),
         endOnDispose: () => GROUP_END,
       }),
       groupEnd,
