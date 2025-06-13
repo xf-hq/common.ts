@@ -1,52 +1,60 @@
-import { FnC, FnCC, FnCT } from '../../general/factories-and-latebinding';
-
 export interface Latch {
   readonly waiting: boolean;
 }
+
 export interface LatchHandle {
   release (): void;
 }
+export type LatchHandle_ = LatchHandle | LatchHandle['release'];
+export function LatchHandle (release: LatchHandle_): LatchHandle { return typeof release === 'function' ? { release } : release; }
+
 export interface Resettable {
   reset (): void;
 }
+export type Resettable_ = Resettable | Resettable['reset'];
+
+export interface Monitor {
+  attach (handle: LatchHandle, detach?: Monitor): void;
+}
+export type Monitor_ = Monitor | Monitor['attach'];
+export function Monitor (attach: Monitor_): Monitor { return typeof attach === 'function' ? { attach } : attach; }
+export namespace Monitor {
+  export function attach (monitor: Monitor_, handle: LatchHandle_, detach?: Monitor_): void {
+    if (typeof handle === 'function') handle = LatchHandle(handle);
+    if (typeof detach === 'function') detach = Monitor(monitor);
+    if (typeof monitor === 'function') monitor(handle, detach);
+    else monitor.attach(handle, detach);
+  }
+}
+
+export interface ResettableMonitor {
+  attach (handle: ResettableLatchHandle, detach?: Monitor): void;
+}
+export type ResettableMonitor_ = ResettableMonitor | ResettableMonitor['attach'];
+
+export interface Sink<T extends readonly any[], R> {
+  write (...value: T): R;
+}
+export type Sink_<T extends readonly any[], R> = Sink<T, R> | Sink<T, R>['write'];
+
+export interface Hold<T extends readonly any[]> {
+  read<R> (sink: Sink<T, R>): R;
+}
+export type Hold_<T extends readonly any[]> = Hold<T> | Hold<T>['read'];
+
 export interface ResettableLatchHandle extends LatchHandle, Resettable {}
 export interface MasterLatch extends Latch, LatchHandle {}
-export interface ResettableMasterLatch extends MasterLatch, Resettable {
-  reset (): void;
-}
-export interface LatchMulticaster {
-  attach (handle: LatchHandle): void;
-  detach (handle: LatchHandle): void;
-}
-export interface MulticastLatch extends Latch, LatchMulticaster {
-  attach (handle: LatchHandle): void;
-  detach (handle: LatchHandle): void;
-}
-export interface MulticastMasterLatch extends MulticastLatch, MasterLatch {}
-export interface ResettableLatchMulticaster extends LatchMulticaster {
-  attach (handle: ResettableLatchHandle): void;
-  detach (handle: ResettableLatchHandle): void;
-}
-export interface ResettableMulticastLatch extends MulticastLatch, ResettableLatchMulticaster {
-  attach (handle: ResettableLatchHandle): void;
-  detach (handle: ResettableLatchHandle): void;
-}
-export interface ResettableMulticastMasterLatch extends ResettableMulticastLatch, ResettableMasterLatch {}
-export interface Future<T> {
-  readonly state: MulticastLatch;
-  readonly value: T | undefined;
-}
-export interface VoidableFuture<T> extends Future<T> {
-  readonly state: ResettableMulticastLatch;
-  readonly value: T | undefined;
-}
-export interface Sink<T> {
-  dispatch (value: T): void;
-}
-export interface FutureController<T> extends Sink<T>, Future<T> {}
+export interface ResettableMasterLatch extends MasterLatch, Resettable {}
+export interface ObservableLatch extends Latch, Monitor {}
+export interface ObservableMasterLatch extends ObservableLatch, MasterLatch {}
+export interface ResettableObservableLatch extends Latch, ResettableMonitor {}
+export interface ResettableObservableMasterLatch extends ResettableObservableLatch, ResettableMasterLatch {}
 
-export const FunctionCallingLatch = FnCT<ResettableMasterLatch>()(
-  class FunctionCallingLatch<A extends any[]> implements ResettableMasterLatch {
+export interface Future<T extends readonly any[]> extends ObservableLatch, Hold<T> {}
+export interface VoidableFuture<T extends readonly any[]> extends ResettableObservableLatch, Hold<T> {}
+export interface FutureController<T extends readonly any[]> extends Sink<T, void>, Future<T> {}
+
+export const FunctionCallingLatch = class _<A extends any[]> implements ResettableMasterLatch {
   constructor (
     private readonly _target: (...args: A) => void,
     private readonly _thisArg: any,
@@ -68,86 +76,93 @@ export const FunctionCallingLatch = FnCT<ResettableMasterLatch>()(
   reset (): void {
     this._waiting = true;
   }
-});
+};
 
-export const MulticastingLatch = FnCT<MulticastMasterLatch>()(
-  class MulticastingLatch implements MulticastMasterLatch {
-    private readonly _attachedLatches = new Set<ResettableLatchHandle>();
-    private _waiting: boolean = true;
+export const ObservableLatch = class implements ObservableMasterLatch {
+  private readonly _attachedLatches = new Set<LatchHandle>();
+  private _waiting: boolean = true;
 
-    get waiting (): boolean { return this._waiting; }
+  get waiting (): boolean { return this._waiting; }
 
-    release (): void {
-      if (this._waiting) {
-        this._waiting = false;
-        for (const latch of this._attachedLatches) {
-          latch.release();
-        }
-      }
-    }
-    attach (handle: ResettableLatchHandle): void {
-      this._attachedLatches.add(handle);
-      if (!this._waiting) {
-        // If the multicasting latch has already been released, release the new one too.
-        handle.release();
-      }
-    }
-    detach (handle: ResettableLatchHandle): void {
-      this._attachedLatches.delete(handle);
-    }
-  }
-);
-
-export const ResettableMulticastingLatch = FnCT<ResettableMulticastMasterLatch>()(
-  class MulticastingLatch implements ResettableMulticastMasterLatch {
-    private readonly _attachedLatches = new Set<ResettableLatchHandle>();
-    private _waiting: boolean = true;
-
-    get waiting (): boolean { return this._waiting; }
-
-    release (): void {
-      if (this._waiting) {
-        this._waiting = false;
-        for (const latch of this._attachedLatches) {
-          latch.release();
-        }
-      }
-    }
-    reset (): void {
-      this._waiting = true;
+  release (): void {
+    if (this._waiting) {
+      this._waiting = false;
       for (const latch of this._attachedLatches) {
-        latch.reset();
+        latch.release();
       }
-    }
-    attach (handle: ResettableLatchHandle): void {
-      this._attachedLatches.add(handle);
-      if (!this._waiting) {
-        // If the multicasting latch has already been released, release the new one too.
-        handle.release();
-      }
-    }
-    detach (handle: ResettableLatchHandle): void {
-      this._attachedLatches.delete(handle);
     }
   }
-);
+  attach (handle: LatchHandle, detach?: Monitor): void {
+    if (!this._waiting) {
+      // If the latch has already been released, release the new one too.
+      return handle.release();
+    }
+    if (detach) Monitor.attach(detach, () => this._attachedLatches.delete(handle));
+    this._attachedLatches.add(handle);
+  }
+};
+
+export const ResettableObservableLatch = class implements ResettableObservableMasterLatch {
+  private readonly _attachedLatches = new Set<ResettableLatchHandle>();
+  private _waiting: boolean = true;
+
+  get waiting (): boolean { return this._waiting; }
+
+  release (): void {
+    if (this._waiting) {
+      this._waiting = false;
+      for (const latch of this._attachedLatches) {
+        latch.release();
+      }
+    }
+  }
+  reset (): void {
+    this._waiting = true;
+    for (const latch of this._attachedLatches) {
+      latch.reset();
+    }
+  }
+  attach (handle: ResettableLatchHandle, detach?: Monitor): void {
+    this._attachedLatches.add(handle);
+    if (detach) Monitor.attach(detach, () => this._attachedLatches.delete(handle));
+    if (!this._waiting) {
+      // If the multicasting latch has already been released, release the new one too.
+      handle.release();
+    }
+  }
+};
+
+export const ObservableFuture = class _<T extends readonly any[]> extends ObservableLatch implements FutureController<T> {
+  private readonly _latch = new ObservableLatch();
+  private _value: T;
+
+  read<R> (sink: Sink<T, R>): R {
+    if (this._latch.waiting) {
+      throw new Error(`Cannot read from a Future that is still waiting for a value.`);
+    }
+    return sink.write(...this._value);
+  }
+
+  write (...value: T): void {
+    if (!this._latch.waiting) {
+      throw new Error(`This future has already been written.`);
+    }
+    this._value = value;
+    this._latch.release();
+  }
+};
 
 export namespace Latch {
   /**
-   * Combines two `LatchMulticaster` instances such that the provided `LatchHandle` is released only when both latches
+   * Combines two `Monitor` instances such that the provided `LatchHandle` is released only when both latches
    * have been released.
    * @returns A `LatchHandle` used to detach the downstream handle from the left and right latches.
    */
-  export function and (left: LatchMulticaster, right: LatchMulticaster, handle: LatchHandle): LatchHandle {
+  export function and (left: Monitor_, right: Monitor_, handle: LatchHandle_, detach?: Monitor_): void {
+    handle = LatchHandle(handle);
     const state: [boolean, boolean] = [false, false];
-    left.attach(new And(handle, state, 0));
-    right.attach(new And(handle, state, 1));
-    return {
-      release (): void {
-        left.detach(handle);
-        right.detach(handle);
-      },
-    };
+    Monitor.attach(left, new And(handle, state, 0), detach);
+    Monitor.attach(right, new And(handle, state, 1), detach);
   }
   class And implements LatchHandle {
     constructor (
@@ -163,36 +178,32 @@ export namespace Latch {
   }
 }
 
-type _FutureController<T> = FutureController<T>;
-export const Future = FnCC(
-  class FutureController<T> implements _FutureController<T> {
-    static create<T> (): _FutureController<T> {
-      return new FutureController<T>(MulticastingLatch());
-    }
-    constructor (
-      private readonly _latch: MulticastMasterLatch,
-    ) {}
-    private _value: T | undefined;
-
-    get state (): MulticastLatch { return this._latch; }
-    get value (): T | undefined { return this._value; }
-
-    dispatch (value: T): void {
-      if (!this._latch.waiting) {
-        throw new Error(`Cannot dispatch a value to a Future that is not in a waiting state.`);
-      }
-      this._value = value;
-      this._latch.release();
-    }
+export function Sink<T extends readonly any[], R> (write: (...value: T) => R): Sink<T, R> {
+  return { write };
+}
+export namespace Sink {
+  export function write<T extends readonly any[], R> (sink: Sink_<T, R>, ...value: T): R {
+    return typeof sink === 'function' ? sink(...value) : sink.write(...value);
   }
-);
+}
+
+export namespace Future {
+  export function concat<A extends readonly any[], B extends readonly any[]> (
+    a: Future<A>,
+    b: Future<B>,
+    sink: Sink_<[...A, ...B], void>,
+    detach?: Monitor,
+  ): void {
+    Latch.and(a, b, LatchHandle(() => a.read(Sink((...a: A) => b.read(Sink((...b: B) => Sink.write(sink, ...a, ...b)))))), detach);
+  }
+}
 
 interface QueuedEvent<T> {
   readonly event: T;
   next: QueuedEvent<T> | undefined;
 }
 export class QueueableEventLatch<T> {
-  private readonly _latch = ResettableMulticastingLatch();
+  private readonly _latch = new ResettableObservableLatch();
   private _current: T | undefined;
   private _next: QueuedEvent<T> | undefined;
   private _last: QueuedEvent<T> | undefined;
