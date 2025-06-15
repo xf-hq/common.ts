@@ -46,6 +46,10 @@ export interface ResettableLatchHandle extends LatchHandle, Resettable {}
 export interface MasterLatch extends Latch, LatchHandle {}
 export interface ResettableMasterLatch extends MasterLatch, Resettable {}
 export interface ObservableLatch extends Latch, Monitor {}
+/**
+ * A latch that other latches can attach to, allowing the attached latches to be released when this latch transitions to
+ * a released state.
+ */
 export interface ObservableMasterLatch extends ObservableLatch, MasterLatch {}
 export interface ResettableObservableLatch extends Latch, ResettableMonitor {}
 export interface ResettableObservableMasterLatch extends ResettableObservableLatch, ResettableMasterLatch {}
@@ -54,6 +58,9 @@ export interface Future<T extends readonly any[]> extends ObservableLatch, Hold<
 export interface VoidableFuture<T extends readonly any[]> extends ResettableObservableLatch, Hold<T> {}
 export interface FutureController<T extends readonly any[]> extends Sink<T, void>, Future<T> {}
 
+/**
+ * When the latch transitions to a released state, the target function is called with the provided arguments.
+ */
 export const FunctionCallingLatch = class _<A extends any[]> implements ResettableMasterLatch {
   constructor (
     private readonly _target: (...args: A) => void,
@@ -78,7 +85,7 @@ export const FunctionCallingLatch = class _<A extends any[]> implements Resettab
   }
 };
 
-export const ObservableLatch = class implements ObservableMasterLatch {
+export const ObservableMasterLatch = class implements ObservableMasterLatch {
   private readonly _attachedLatches = new Set<LatchHandle>();
   private _waiting: boolean = true;
 
@@ -132,8 +139,8 @@ export const ResettableObservableLatch = class implements ResettableObservableMa
   }
 };
 
-export const ObservableFuture = class _<T extends readonly any[]> extends ObservableLatch implements FutureController<T> {
-  private readonly _latch = new ObservableLatch();
+export const ObservableFuture = class _<T extends readonly any[]> extends ObservableMasterLatch implements FutureController<T> {
+  private readonly _latch = new ObservableMasterLatch();
   private _value: T;
 
   read<R> (sink: Sink<T, R>): R {

@@ -1,7 +1,7 @@
 import { isString } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { AssociativeRecordSource } from './associative-record-source';
-import { AssociativeRecordSourceSubscription, AssociativeRecordSourceTag } from './common';
+import { AssociativeRecordSourceTag, createAssociativeRecordSourceSubscription } from './common';
 
 export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource.Immediate<V>, AssociativeRecordSource.Manual<V> {
   constructor (initialRecord: Record<string, V> = {}) {
@@ -14,9 +14,8 @@ export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource
 
   get __record () { return this.#record; }
 
-  subscribe<A extends any[]> (onChange: AssociativeRecordSource.Subscriber<V, A>, ...args: A): AssociativeRecordSource.Subscription<V> {
-    const subscription = this.#emitter.subscribe(onChange, ...args);
-    return new AssociativeRecordSourceSubscription(this, subscription);
+  subscribe<A extends any[]> (subscriber: AssociativeRecordSource.Subscriber<V, A>, ...args: A): AssociativeRecordSource.Subscription<V> {
+    return createAssociativeRecordSourceSubscription(this, this.#emitter, subscriber, args);
   }
 
   set (key: string, value: V): void;

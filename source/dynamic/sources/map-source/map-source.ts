@@ -33,41 +33,6 @@ export namespace MapSource {
     readonly change: ReadonlyMap<K, V> | null;
     readonly delete: ReadonlyArray<K> | null;
   }
-  export interface Immediate<K, V> extends MapSource<K, V> {
-    readonly __map: ReadonlyMap<K, V>;
-    readonly size: number;
-  }
-
-  export interface Manual<K, V> extends Immediate<K, V> {
-    readonly __emitter: Subscribable.Controller.Auxiliary<[event: MapSource.Event<K, V>]>;
-
-    set (key: K, value: V): boolean;
-    delete (key: K): boolean;
-    clear (): void;
-    modify (assignments: ReadonlyMap<K, V> | null, deletions: ReadonlyArray<K> | null): void;
-
-    get (key: K): V | undefined;
-    has (key: K): boolean;
-    keys (): Iterable<K>;
-    values (): Iterable<V>;
-    entries (): Iterable<[K, V]>;
-  }
-  export namespace Manual {
-    export interface DemandObserver<K, V> {
-      online? (source: Manual<K, V>): void;
-      offline? (source: Manual<K, V>): void;
-      subscribe? (source: Manual<K, V>, receiver: Receiver<K, V, any[]>): void;
-      unsubscribe? (source: Manual<K, V>, receiver: Receiver<K, V, any[]>): void;
-    }
-  }
-
-  export function create<K, V> (map?: Map<K, V>): Manual<K, V>;
-  export function create<K, V> (map: Map<K, V>, onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>;
-  export function create<K, V> (onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>; export function create<K, V> (arg0?: Map<K, V> | Manual.DemandObserver<K, V>, arg1?: Manual.DemandObserver<K, V>): Manual<K, V> {
-    const [map, onDemandChanged] = isIterable(arg0) ? [arg0, arg1] : [new Map<K, V>(), arg0];
-    return new ManualMapSource(map, onDemandChanged);
-  }
-
   export interface EventReceiver<K, V> {
     add? (entries: ReadonlyMap<K, V>): void;
     change? (entries: ReadonlyMap<K, V>): void;
@@ -99,6 +64,40 @@ export namespace MapSource {
   }
   export function subscribe<K, V> (source: MapSource<K, V>, receiver: EventReceiver<K, V>): Subscription<K, V> {
     return source.subscribe(new EventReceiverAdapter(receiver));
+  }
+
+  export interface Immediate<K, V> extends MapSource<K, V> {
+    readonly __map: ReadonlyMap<K, V>;
+    readonly size: number;
+  }
+  export interface Manual<K, V> extends Immediate<K, V> {
+    readonly __emitter: Subscribable.Controller.Auxiliary<[event: MapSource.Event<K, V>]>;
+
+    set (key: K, value: V): boolean;
+    delete (key: K): boolean;
+    clear (): void;
+    modify (assignments: ReadonlyMap<K, V> | null, deletions: ReadonlyArray<K> | null): void;
+
+    get (key: K): V | undefined;
+    has (key: K): boolean;
+    keys (): Iterable<K>;
+    values (): Iterable<V>;
+    entries (): Iterable<[K, V]>;
+  }
+  export namespace Manual {
+    export interface DemandObserver<K, V> {
+      online? (source: Manual<K, V>): void;
+      offline? (source: Manual<K, V>): void;
+      subscribe? (source: Manual<K, V>, receiver: Receiver<K, V, any[]>): void;
+      unsubscribe? (source: Manual<K, V>, receiver: Receiver<K, V, any[]>): void;
+    }
+  }
+
+  export function create<K, V> (map?: Map<K, V>): Manual<K, V>;
+  export function create<K, V> (map: Map<K, V>, onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>;
+  export function create<K, V> (onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>; export function create<K, V> (arg0?: Map<K, V> | Manual.DemandObserver<K, V>, arg1?: Manual.DemandObserver<K, V>): Manual<K, V> {
+    const [map, onDemandChanged] = isIterable(arg0) ? [arg0, arg1] : [new Map<K, V>(), arg0];
+    return new ManualMapSource(map, onDemandChanged);
   }
 
   export interface StatefulMapper<K, VA, VB, TItemState, TCommonState = void> {

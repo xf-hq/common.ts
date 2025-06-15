@@ -16,7 +16,7 @@ namespace ValueSourceExample {
     // The subscription always provides access to the current value. There are two ways to get access to the
     // subscription object. It is first passed to the callback we pass to `subscribe`, and it is also returned by
     // `subscribe`. It is
-    const sub = source.subscribe(initializeSubscription, state);
+    const sub = source.subscribe({ init: initializeSubscription, event: onValueChanged }, state).echo();
     // We'll sample the current value every 1000 milliseconds
     setInterval(() => {
       // The subscription always provides access to the current value
@@ -28,12 +28,11 @@ namespace ValueSourceExample {
     }, 30000);
   }
 
-  function initializeSubscription (subscription: ValueSource.Subscription<number>, state: Writable<State>): Subscribable.Subscriber<[value: number], [state: State]> {
+  function initializeSubscription (subscription: ValueSource.Subscription<number>, state: Writable<State>) {
     // The subscription object provides a view of the current value and whether or not the source's state has been
     // finalized (i.e. will never change again).
     state.subscription = subscription;
     state.sum = subscription.value;
-    return onValueChanged;
   }
 
   function onValueChanged (value: number, state: State) {

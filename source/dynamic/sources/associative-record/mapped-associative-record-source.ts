@@ -3,7 +3,7 @@ import { throwError } from '../../../general/errors';
 import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
 import type { AssociativeRecordSource } from './associative-record-source';
-import { AssociativeRecordSourceSubscription, AssociativeRecordSourceTag } from './common';
+import { AssociativeRecordSourceTag, createAssociativeRecordSourceSubscription } from './common';
 
 export class MappedAssociativeRecordSource<VA, VB> implements AssociativeRecordSource.Immediate<VB>, Subscribable.Receiver<[event: AssociativeRecordSource.Event<VA>]> {
   constructor (f: (a: VA) => VB, source: AssociativeRecordSource<VA>) {
@@ -21,9 +21,8 @@ export class MappedAssociativeRecordSource<VA, VB> implements AssociativeRecordS
   /** @internal */
   get __record () { return this.#mappedRecord ??= throwError('Internal record not initialized.'); }
 
-  subscribe<A extends any[]> (onChange: AssociativeRecordSource.Subscriber<VB, A>, ...args: A): AssociativeRecordSource.Subscription<VB> {
-    const subscription = this.#emitter.subscribe(onChange, ...args);
-    return new AssociativeRecordSourceSubscription(this, subscription);
+  subscribe<A extends any[]> (subscriber: AssociativeRecordSource.Subscriber<VB, A>, ...args: A): AssociativeRecordSource.Subscription<VB> {
+    return createAssociativeRecordSourceSubscription(this, this.#emitter, subscriber, args);
   }
 
   onDemandChange (event: Subscribable.DemandObserver.Event): void {

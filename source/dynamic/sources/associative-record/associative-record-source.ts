@@ -18,7 +18,10 @@ export interface AssociativeRecordSource<V> {
   subscribe<A extends any[]> (onChange: AssociativeRecordSource.Subscriber<V, A>, ...args: A): AssociativeRecordSource.Subscription<V>;
 }
 export namespace AssociativeRecordSource {
-  export type Subscriber<V, A extends any[]> = Subscribable.Subscriber<[event: AssociativeRecordSource.Event<V>], A>;
+  export type Subscriber<V, A extends any[]> = Receiver<V, A> | Receiver<V, A>['event'];
+  export interface Receiver<V, A extends any[]> extends Subscribable.Receiver<[event: AssociativeRecordSource.Event<V>], A> {
+    init? (subscription: Subscription<V>): void;
+  }
   export interface Subscription<V> extends Disposable {
     readonly __record: Readonly<Record<string, V>>;
   }
