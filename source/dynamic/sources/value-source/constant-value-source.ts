@@ -41,9 +41,10 @@ export class ConstantValueSource<T> implements ValueSource<T> {
       return true;
     }
 
-    echo (): void {
+    echo (): this {
       this.assertNotDisposed();
       this.#receiver.event(this.value, ...this.#args);
+      return this;
     }
 
     private assertNotDisposed () {

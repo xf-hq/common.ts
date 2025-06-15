@@ -102,9 +102,10 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
       return this.#source.isFinalized;
     }
 
-    echo (): void {
+    echo (): this {
       this.assertNotDisposed();
       this.#receiver.event(this.value, ...this.#args);
+      return this;
     }
 
     __setDisposable (disposable: Disposable) {

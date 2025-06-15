@@ -36,7 +36,7 @@ export namespace ValueSource {
     /**
      * Emits the current value to the receiver.
      */
-    echo (): void;
+    echo (): this;
   }
   export interface DemandObserver<T> {
     online? (source: Manual<T>): void;
