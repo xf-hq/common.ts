@@ -1,4 +1,3 @@
-import { disposeOnAbort } from '../../../general/disposables';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
 import { BinaryOperationSource, UnaryOperationSource } from './base-operation-value-sources';
@@ -22,7 +21,7 @@ export interface ValueSource<T = any> {
    * The subscriber will never be signalled before the call to the `subscribe` method returns. The initial value and
    * state of the source will always be able to be consumed before any signals are emitted.
    */
-  subscribe<A extends any[]> (subscriber: ValueSource.SubscribeCallback<T, A> | ValueSource.Receiver<T, A>, ...args: A): ValueSource.Subscription<T>;
+  subscribe<A extends any[]> (receiver: ValueSource.Receiver<T, A> | ValueSource.Receiver<T, A>['event'], ...args: A): ValueSource.Subscription<T>;
 }
 export namespace ValueSource {
   export type SubscribeCallback<T, A extends any[]> = (subscription: Subscription<T>, ...args: A) => Subscriber<T, A>;
@@ -34,35 +33,16 @@ export namespace ValueSource {
     readonly value: T;
     readonly finalization: Async<true>;
     readonly isFinalized: boolean;
+    /**
+     * Emits the current value to the receiver.
+     */
+    echo (): void;
   }
   export interface DemandObserver<T> {
     online? (source: Manual<T>): void;
     offline? (source: Manual<T>): void;
     subscribe? (source: Manual<T>, receiver: Receiver<T, unknown[]>): void;
     unsubscribe? (source: Manual<T>, receiver: Receiver<T, unknown[]>): void;
-  }
-
-  export function subscribe<T, A extends any[]> (source: ValueSource<T>, subscriber: ValueSource.SubscribeCallback<T, A> | ValueSource.Receiver<T, A>, ...args: A): Subscription<T>;
-  export function subscribe<T, A extends any[]> (source: ValueSource<T>, abortSignal: AbortSignal, subscriber: ValueSource.SubscribeCallback<T, A> | ValueSource.Receiver<T, A>, ...args: A): Subscription<T>;
-  export function subscribe<T, A extends any[]> (source: ValueSource<T>, arg1: ValueSource.SubscribeCallback<T, A> | ValueSource.Receiver<T, A> | AbortSignal, ...rest: any[]): Subscription<T> {
-    let subscriber: ValueSource.SubscribeCallback<T, A> | ValueSource.Receiver<T, A>;
-    let args: A;
-    let abortSignal: AbortSignal | undefined;
-    if (arg1 instanceof AbortSignal) {
-      abortSignal = arg1;
-      subscriber = rest[0];
-      args = rest.slice(1) as A;
-    }
-    else {
-      subscriber = arg1;
-      args = rest as A;
-    }
-    const subscription = source.subscribe(subscriber, ...args);
-    if (abortSignal) {
-      abortSignal.throwIfAborted();
-      disposeOnAbort(abortSignal, subscription);
-    }
-    return subscription;
   }
 
   export type Maybe<T = unknown> = ValueSource<ValueSource<T> | null>;

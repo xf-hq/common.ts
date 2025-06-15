@@ -3,7 +3,7 @@ import { bindMethod } from '../../../general/functional';
 import { isFunction, isUndefined } from '../../../general/type-checking';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
-import { _initializeValueSourceSubscriber, ValueSourceTag } from './common';
+import { normalizeValueSourceReceiverArg, ValueSourceTag } from './common';
 import { ValueSource } from './value-source';
 
 export namespace UnaryOperationSource {
@@ -35,10 +35,11 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
   get isFinalized (): boolean { return this.#current!.isFinalized; }
   get status (): Subscribable.DemandStatus { return this.#emitter; }
 
-  subscribe<A extends any[]> (subscribe: ValueSource.SubscribeCallback<B, A> | ValueSource.Receiver<B, A>, ...args: A): ValueSource.Subscription<B> {
-    const subscription = new InternalSource.Subscription(this);
-    const subscriber = _initializeValueSourceSubscriber(subscription, subscribe, args);
-    const disposable = this.#emitter.subscribe(subscriber, ...args);
+  subscribe<A extends any[]> (receiver: ValueSource.Receiver<B, A> | ValueSource.Receiver<B, A>['event'], ...args: A): ValueSource.Subscription<B> {
+    receiver = normalizeValueSourceReceiverArg(receiver);
+    const subscription = new InternalSource.Subscription(this, receiver, args);
+    receiver.init?.(subscription, ...args);
+    const disposable = this.#emitter.subscribe(receiver, ...args);
     subscription.__setDisposable(disposable);
     return subscription;
   }
@@ -50,7 +51,7 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
     }
   }
   online () {
-    const input = this.#inputsub = this.#source.subscribe(() => new UnaryOperationSource.UpstreamReceiver(this));
+    const input = this.#inputsub = this.#source.subscribe(new UnaryOperationSource.UpstreamReceiver(this));
     this.#current = {
       value: this.#driver.compute(input.value),
       finalization: input.finalization,
@@ -127,10 +128,11 @@ export class BinaryOperationSource<A, B = A, C = A> implements ValueSource.Immed
   get isFinalized (): boolean { return this.#current!.isFinalized; }
   get status (): Subscribable.DemandStatus { return this.#emitter; }
 
-  subscribe<A extends any[]> (subscribe: ValueSource.SubscribeCallback<C, A> | ValueSource.Receiver<C, A>, ...args: A): ValueSource.Subscription<C> {
-    const subscription = new InternalSource.Subscription(this);
-    const subscriber = _initializeValueSourceSubscriber(subscription, subscribe, args);
-    const disposable = this.#emitter.subscribe(subscriber, ...args);
+  subscribe<A extends any[]> (receiver: ValueSource.Receiver<C, A> | ValueSource.Receiver<C, A>['event'], ...args: A): ValueSource.Subscription<C> {
+    receiver = normalizeValueSourceReceiverArg(receiver);
+    const subscription = new InternalSource.Subscription(this, receiver, args);
+    receiver.init?.(subscription, ...args);
+    const disposable = this.#emitter.subscribe(receiver, ...args);
     subscription.__setDisposable(disposable);
     return subscription;
   }
@@ -142,8 +144,8 @@ export class BinaryOperationSource<A, B = A, C = A> implements ValueSource.Immed
     }
   }
   online () {
-    const left = this.#leftsub = this.#left.subscribe(() => new BinaryOperationSource.LeftReceiver(this));
-    const right = this.#rightsub = this.#right.subscribe(() => new BinaryOperationSource.RightReceiver(this));
+    const left = this.#leftsub = this.#left.subscribe(new BinaryOperationSource.LeftReceiver(this));
+    const right = this.#rightsub = this.#right.subscribe(new BinaryOperationSource.RightReceiver(this));
     this.#current = {
       value: this.#driver.compute(left.value, right.value),
       finalization: Async.fromPromise(left.finalization.then(() => right.finalization)),
@@ -205,10 +207,14 @@ export interface InternalSource<T> extends ValueSource<T> {
 }
 export namespace InternalSource {
   export class Subscription<T> implements ValueSource.Subscription<T> {
-    constructor (source: ValueSource.Immediate<T>) {
+    constructor (source: ValueSource.Immediate<T>, receiver: ValueSource.Receiver<T, any>, args: any[]) {
       this.#source = source;
+      this.#receiver = receiver;
+      this.#args = args;
     }
     readonly #source: ValueSource.Immediate<T>;
+    readonly #receiver: ValueSource.Receiver<T, any>;
+    readonly #args: any[];
     #disposable: Disposable;
     #disposed = false;
 
@@ -225,6 +231,11 @@ export namespace InternalSource {
       return this.#source.isFinalized;
     }
 
+    echo (): void {
+      this.assertNotDisposed();
+      this.#receiver.event(this.value, ...this.#args);
+    }
+
     __setDisposable (disposable: Disposable) {
       this.#disposable = disposable;
     }
@@ -234,6 +245,7 @@ export namespace InternalSource {
         throw new Error(`Cannot interact with a disposed subscription.`);
       }
     }
+
     [Symbol.dispose] () {
       if (this.#disposed) return;
       this.#disposed = true;

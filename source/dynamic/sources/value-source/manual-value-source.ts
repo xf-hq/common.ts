@@ -2,7 +2,7 @@ import { dispose } from '../../../general/disposables';
 import { isDefined } from '../../../general/type-checking';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
-import { _initializeValueSourceSubscriber, ValueSourceTag } from './common';
+import { normalizeValueSourceReceiverArg, ValueSourceTag } from './common';
 import type { ValueSource } from './value-source';
 
 export class ManualValueSource<T> implements ValueSource.Manual<T> {
@@ -28,8 +28,9 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
   }
   get status () { return this.#emitter; }
 
-  subscribe<A extends any[]> (subscribe: ValueSource.SubscribeCallback<T, A> | ValueSource.Receiver<T, A>, ...args: A): ValueSource.Subscription<T> {
-    const subscription = new ManualValueSource.Subscription(this);
+  subscribe<A extends any[]> (receiver: ValueSource.Receiver<T, A> | ValueSource.Receiver<T, A>['event'], ...args: A): ValueSource.Subscription<T> {
+    receiver = normalizeValueSourceReceiverArg(receiver);
+    const subscription = new ManualValueSource.Subscription(this, receiver, args);
 
     // Force the source to be in an online state before we do anything else, just in case the 'online' event would
     // lead to an initial value assignment. As soon as we invoke the callback it is likely that the caller will try to
@@ -38,8 +39,8 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     // is called, but only ends up being called _after_ the callback for the first subscriber has been invoked.
 
     this.#emitter.__incrementDemand();
-    const subscriber = _initializeValueSourceSubscriber(subscription, subscribe, args);
-    const disposable = this.#emitter.subscribe(subscriber, ...args);
+    receiver.init?.(subscription, ...args);
+    const disposable = this.#emitter.subscribe(receiver, ...args);
     subscription.__setDisposable(disposable);
 
     this.#emitter.__decrementDemand();
@@ -77,10 +78,14 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
   }
 
   static Subscription = class Subscription<T> implements ValueSource.Subscription<T> {
-    constructor (source: ManualValueSource<T>) {
+    constructor (source: ManualValueSource<T>, receiver: ValueSource.Receiver<T, any>, args: any[]) {
       this.#source = source;
+      this.#receiver = receiver;
+      this.#args = args;
     }
     readonly #source: ManualValueSource<T>;
+    readonly #receiver: ValueSource.Receiver<T, any>;
+    readonly #args: any[];
     #disposable: Disposable;
     #disposed = false;
 
@@ -95,6 +100,11 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     get isFinalized () {
       this.assertNotDisposed();
       return this.#source.isFinalized;
+    }
+
+    echo (): void {
+      this.assertNotDisposed();
+      this.#receiver.event(this.value, ...this.#args);
     }
 
     __setDisposable (disposable: Disposable) {
