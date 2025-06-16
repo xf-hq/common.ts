@@ -1,7 +1,7 @@
-import { defineGetter } from '@xf-common/primitive';
-import { isArray, isDefined, isFunction, isNonZeroLengthString, isObject, isString, isSymbol, isUndefined } from '@xf-common/general/type-checking';
-import { setLightness } from '../color/color-functions';
-import { Material } from '../color/material';
+import { setLightness } from '../../color/color-functions';
+import { Material } from '../../color/material';
+import { isArray, isDefined, isFunction, isNonZeroLengthString, isObject, isString, isSymbol, isUndefined } from '../../general/type-checking';
+import { defineGetter } from '../../primitive';
 import { ConsoleMessage, cmsg } from './console-message';
 import { ConsoleNotes } from './console-notes';
 
@@ -265,8 +265,12 @@ export namespace TODO {
 
   function isMethodOf (object: string | object, method: string | symbol | AnyFunctionOrAbstractConstructor) {
     if (isString(object)) return false;
-    if (isFunction(method)) method = method.name;
-    return isFunction(object[method]);
+    if (isFunction(method)) {
+      return isFunction(object[method.name]);
+    }
+    // TypeScript isn't properly narrowing here, so we need to be explicit
+    const methodKey = method as string | symbol;
+    return isFunction(object[methodKey]);
   }
 
   const PADDING = '5px';
