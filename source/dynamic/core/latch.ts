@@ -194,7 +194,18 @@ export namespace Sink {
   }
 }
 
+export function Future<T extends readonly any[]> (onWrite?: LatchHandle | LatchHandle['release']): FutureController<T> {
+  const future = new ObservableFuture<T>();
+  if (onWrite) Monitor.attach(future, onWrite);
+  return future;
+}
 export namespace Future {
+  export function of<T extends readonly any[]> (...value: T): FutureController<T> {
+    const future = new ObservableFuture<T>();
+    future.write(...value);
+    return future;
+  }
+
   export function concat<A extends readonly any[], B extends readonly any[]> (
     a: Future<A>,
     b: Future<B>,
