@@ -1,8 +1,22 @@
 import { dispose } from '../../../general/disposables';
+import type { Subscribable } from '../../core';
 import type { ArraySource } from './array-source';
 
 export const ArraySourceTag: unique symbol = Symbol('ArraySource');
 export const isArraySource = (value: any): value is ArraySource<any> => value?.[ArraySourceTag] === true;
+
+export function createArraySourceSubscription<T, A extends any[]>(
+  source: { readonly __array: readonly T[] | undefined },
+  emitter: Subscribable<[event: ArraySource.Event<T>]>,
+  subscriber: ArraySource.Subscriber<T, A>,
+  args: A
+): ArraySource.Subscription<T> {
+  const receiver: ArraySource.Receiver<T, A> = typeof subscriber === 'function' ? { event: subscriber } : subscriber;
+  const disposable = emitter.subscribe(receiver, ...args);
+  const subscription = new ArraySourceSubscription<T>(source, disposable);
+  receiver.init?.(subscription, ...args);
+  return subscription;
+}
 
 export class ArraySourceSubscription<T> implements ArraySource.Subscription<T> {
   constructor (

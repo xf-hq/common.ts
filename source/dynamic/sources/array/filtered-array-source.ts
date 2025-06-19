@@ -2,7 +2,7 @@ import { dispose } from '../../../general/disposables';
 import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
 import { ArraySource } from './array-source';
-import { ArraySourceSubscription, ArraySourceTag } from './common';
+import { ArraySourceTag, createArraySourceSubscription } from './common';
 
 interface Element<T> {
   value: T;
@@ -27,8 +27,7 @@ export class FilteredArraySource<T> implements ArraySource<T>, Subscribable.Rece
   get __array () { return this.#filteredValues; }
 
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<T>], A>, ...args: A): ArraySource.Subscription<T> {
-    const subscription = this.#emitter.subscribe(subscriber, ...args);
-    return new ArraySourceSubscription(this, subscription);
+    return createArraySourceSubscription(this, this.#emitter, subscriber, args);
   }
 
   onDemandChange (event: Subscribable.DemandObserver.Event): void {

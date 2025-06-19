@@ -1,4 +1,4 @@
-import { dispose } from '../../../general/disposables';
+import { dispose, disposeOnAbort } from '../../../general/disposables';
 import { returnVoid } from '../../../general/presets';
 import { isArray, isFunction } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
@@ -26,7 +26,9 @@ export interface ArraySource<T> {
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<T>], A>, ...args: A): ArraySource.Subscription<T>;
 }
 export namespace ArraySource {
-  export type Receiver<T, A extends any[] = []> = Subscribable.Receiver<[event: ArraySource.Event<T>], A>;
+  export interface Receiver<T, A extends any[] = []> extends Subscribable.Receiver<[event: ArraySource.Event<T>], A> {
+    init? (subscription: ArraySource.Subscription<T>, ...args: A): void;
+  }
   export type Subscriber<T, A extends any[]> = Subscribable.Subscriber<[event: ArraySource.Event<T>], A>;
   export interface Subscription<T> extends Disposable {
     readonly __array: readonly T[];
@@ -68,29 +70,11 @@ export namespace ArraySource {
     }
   }
 
-  function end<A extends any[]> (subscriber: Subscriber<any, A>, ...args: A): void {
-    if (!isFunction(subscriber)) subscriber.end?.(...args);
+  export function subscribe<V, A extends any[]> (abort: AbortSignal, source: ArraySource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V> {
+    const sub = source.subscribe(receiver, ...args);
+    disposeOnAbort(abort, sub);
+    return sub;
   }
-  function release<A extends any[]> (subscriber: Subscriber<any, A>, ...args: A): void {
-    if (!isFunction(subscriber)) subscriber.unsubscribed?.(...args);
-  }
-
-  const EMPTY_ARRAY: readonly any[] = [];
-  export const Empty: ArraySource<any> = {
-    [ArraySourceTag]: true,
-    subscribe<A extends any[]>(subscriber: Subscribable.Subscriber<[event: ArraySource.Event<any>], A>, ...args: A): Subscription<any> {
-      queueMicrotask(() => end(subscriber, ...args));
-      let disposed = false;
-      return {
-        __array: EMPTY_ARRAY,
-        [Symbol.dispose]: () => {
-          if (disposed) return;
-          disposed = true;
-          release(subscriber, ...args);
-        },
-      };
-    },
-  };
 
   export interface Immediate<T> extends ArraySource<T> {
     readonly __array: readonly T[];
@@ -115,13 +99,6 @@ export namespace ArraySource {
     }
   }
 
-  // export function create<K, V> (map?: Map<K, V>): Manual<K, V>;
-  // export function create<K, V> (map: Map<K, V>, onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>;
-  // export function create<K, V> (onDemandChanged: Manual.DemandObserver<K, V>): Manual<K, V>;
-  // export function create<K, V> (arg0?: Map<K, V> | Manual.DemandObserver<K, V>, arg1?: Manual.DemandObserver<K, V>): Manual<K, V> {
-  //   const [map, onDemandChanged] = isIterable(arg0) ? [arg0, arg1] : [new Map<K, V>(), arg0];
-  //   return new ManualMapSource(map, onDemandChanged);
-  // }
   export function create<T> (array?: T[]): Manual<T>;
   export function create<T> (array: T[], onDemandChanged: Manual.DemandObserver<T>): Manual<T>;
   export function create<T> (onDemandChanged: Manual.DemandObserver<T>): Manual<T>;

@@ -11,7 +11,7 @@
     "case": "latest",
     "diff-match-patch": "latest",
     "immutable": "latest",
-    "typescript": "next",
+    "typescript": "latest",
     "uuid": "latest"
   },
   "peerDependencies": {

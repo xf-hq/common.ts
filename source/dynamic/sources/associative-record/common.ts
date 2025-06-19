@@ -8,10 +8,10 @@ export function createAssociativeRecordSourceSubscription<V, A extends any[]> (
   subscriber: AssociativeRecordSource.Subscriber<V, A>,
   args: A
 ): AssociativeRecordSource.Subscription<V> {
-  const receiver = typeof subscriber === 'function' ? { event: subscriber } : subscriber;
-  const disposable = emitter.subscribe(subscriber, ...args);
+  const receiver: AssociativeRecordSource.Receiver<V, A> = typeof subscriber === 'function' ? { event: subscriber } : subscriber;
+  const disposable = emitter.subscribe(receiver, ...args);
   const subscription = new AssociativeRecordSourceSubscription<V>(source, disposable);
-  receiver.init?.(subscription);
+  receiver.init?.(subscription, ...args);
   return subscription;
 }
 

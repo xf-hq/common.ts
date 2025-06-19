@@ -1,6 +1,6 @@
 import { Subscribable } from '../../core/subscribable';
 import { ArraySource } from './array-source';
-import { ArraySourceSubscription, ArraySourceTag } from './common';
+import { ArraySourceTag, createArraySourceSubscription } from './common';
 
 export class ManualArraySource<T> implements ArraySource.Manual<T> {
   constructor (initialArray: T[] = [], onDemandChanged?: ArraySource.Manual.DemandObserver<T>) {
@@ -20,8 +20,7 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
   get length () { return this.#array.length; }
 
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<T>], A>, ...args: A): ArraySource.Subscription<T> {
-    const subscription = this.#emitter.subscribe(subscriber, ...args);
-    return new ArraySourceSubscription(this, subscription);
+    return createArraySourceSubscription(this, this.#emitter, subscriber, args);
   }
 
   #batchDepth = 0;

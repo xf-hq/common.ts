@@ -1,3 +1,4 @@
+import { disposeOnAbort } from '../../../general/disposables';
 import { Subscribable } from '../../core/subscribable';
 import { AssociativeRecordSourceTag } from './common';
 import { FilteredAssociativeRecordSource } from './filtered-associative-record-source';
@@ -19,8 +20,8 @@ export interface AssociativeRecordSource<V> {
 }
 export namespace AssociativeRecordSource {
   export type Subscriber<V, A extends any[]> = Receiver<V, A> | Receiver<V, A>['event'];
-  export interface Receiver<V, A extends any[]> extends Subscribable.Receiver<[event: AssociativeRecordSource.Event<V>], A> {
-    init? (subscription: Subscription<V>): void;
+  export interface Receiver<V, A extends any[] = []> extends Subscribable.Receiver<[event: AssociativeRecordSource.Event<V>], A> {
+    init? (subscription: Subscription<V>, ...args: A): void;
   }
   export interface Subscription<V> extends Disposable {
     readonly __record: Readonly<Record<string, V>>;
@@ -30,6 +31,12 @@ export namespace AssociativeRecordSource {
     readonly add: Readonly<Record<string, V>> | null;
     readonly change: Readonly<Record<string, V>> | null;
     readonly delete: ReadonlyArray<string> | null;
+  }
+
+  export function subscribe<V, A extends any[]> (abort: AbortSignal, source: AssociativeRecordSource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V> {
+    const sub = source.subscribe(receiver, ...args);
+    disposeOnAbort(abort, sub);
+    return sub;
   }
 
   export interface Immediate<V> extends AssociativeRecordSource<V> {

@@ -1,9 +1,9 @@
-import { isDefined } from '../../../general/type-checking';
 import { dispose } from '../../../general/disposables';
 import { bindMethod } from '../../../general/functional';
+import { isDefined } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import { ArraySource } from './array-source';
-import { ArraySourceSubscription, ArraySourceTag } from './common';
+import { ArraySourceTag, createArraySourceSubscription } from './common';
 
 export class StatefulMappedArraySource<A, B, S, C> implements ArraySource<B>, Subscribable.Receiver<[event: ArraySource.Event<A>]> {
   constructor (mapper: ArraySource.StatefulMapper<A, B, S, C>, source: ArraySource<A>) {
@@ -24,8 +24,7 @@ export class StatefulMappedArraySource<A, B, S, C> implements ArraySource<B>, Su
   get __array () { return this.#mappedArray; }
 
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<B>], A>, ...args: A): ArraySource.Subscription<B> {
-    const subscription = this.#emitter.subscribe(subscriber, ...args);
-    return new ArraySourceSubscription(this, subscription);
+    return createArraySourceSubscription(this, this.#emitter, subscriber, args);
   }
 
   onDemandChange (event: Subscribable.DemandObserver.Event): void {

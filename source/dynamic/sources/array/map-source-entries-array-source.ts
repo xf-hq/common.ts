@@ -3,7 +3,7 @@ import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
 import type { MapSource } from '../map-source/map-source';
 import { ArraySource } from './array-source';
-import { ArraySourceSubscription, ArraySourceTag } from './common';
+import { ArraySourceTag, createArraySourceSubscription } from './common';
 
 /**
  * `MapSourceEntriesArraySource` transforms a `MapSource<K, V>` into an `ArraySource<[K, V]>`,
@@ -75,8 +75,7 @@ export class MapSourceEntriesArraySource<K, V> implements ArraySource<[K, V]>, S
   get __array () { return this.#array; }
 
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<[K, V]>], A>, ...args: A): ArraySource.Subscription<[K, V]> {
-    const subscription = this.#emitter.subscribe(subscriber, ...args);
-    return new ArraySourceSubscription(this, subscription);
+    return createArraySourceSubscription(this, this.#emitter, subscriber, args);
   }
 
   onDemandChange (event: Subscribable.DemandObserver.Event): void {

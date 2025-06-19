@@ -1,3 +1,5 @@
+import { disposeOnAbort } from '../../../general/disposables';
+import { isFunction } from '../../../general/type-checking';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
 import { BinaryOperationSource, UnaryOperationSource } from './base-operation-value-sources';
@@ -26,7 +28,7 @@ export interface ValueSource<T = any> {
 export namespace ValueSource {
   export type SubscribeCallback<T, A extends any[]> = (subscription: Subscription<T>, ...args: A) => Subscriber<T, A>;
   export type Subscriber<T, A extends any[]> = Receiver<T, A> | Receiver<T, A>['event'];
-  export interface Receiver<T, A extends any[]> extends Subscribable.Receiver<[value: T], A> {
+  export interface Receiver<T, A extends any[] = []> extends Subscribable.Receiver<[value: T], A> {
     init? (subscription: Subscription<T>, ...args: A): void;
   }
   export interface Subscription<T> extends Disposable {
@@ -54,6 +56,13 @@ export namespace ValueSource {
     export function create<T> (initialValue: ValueSource<T> | null = null, onDemandChanged?: DemandObserver<ValueSource<T> | null>) {
       return ValueSource.create(initialValue, onDemandChanged);
     }
+  }
+
+  export function subscribe<T, A extends any[]> (abort: AbortSignal, source: ValueSource<T>, receiver: Subscriber<T, A>, ...args: A): ValueSource.Subscription<T> {
+    const sub = source.subscribe(receiver, ...args);
+    if (isFunction(receiver)) sub.echo();
+    disposeOnAbort(abort, sub)
+    return sub;
   }
 
   export interface Immediate<T = any> extends ValueSource<T> {
