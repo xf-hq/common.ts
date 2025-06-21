@@ -23,9 +23,16 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
     return createArraySourceSubscription(this, this.#emitter, subscriber, args);
   }
 
+  hold (): void {
+    this.#emitter.hold();
+  }
+  release (): void {
+    this.#emitter.release();
+  }
+
   #batchDepth = 0;
   #bufferedEvents: ArraySource.Event<T>[] | undefined;
-  private pushEvent (event: ArraySource.Event<T>) {
+  private _pushEvent (event: ArraySource.Event<T>) {
     if (this.#batchDepth > 0) {
       this.#bufferedEvents!.push(event);
     }
@@ -37,35 +44,42 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
   push (...values: T[]): void {
     if (values.length === 0) return;
     this.#array.push(...values);
-    this.pushEvent({ kind: 'push', values });
+    this._pushEvent({ kind: 'push', values });
   }
   pop (): T | undefined {
     if (this.#array.length === 0) return;
     const value = this.#array.pop()!;
-    this.pushEvent({ kind: 'pop' });
+    this._pushEvent({ kind: 'pop' });
     return value;
   }
   unshift (...values: T[]): void {
     if (values.length === 0) return;
     this.#array.unshift(...values);
-    this.pushEvent({ kind: 'unshift', values });
+    this._pushEvent({ kind: 'unshift', values });
   }
   shift (): T | undefined {
     if (this.#array.length === 0) return;
     const value = this.#array.shift()!;
-    this.pushEvent({ kind: 'shift' });
+    this._pushEvent({ kind: 'shift' });
     return value;
   }
   splice (index: number, deletions: number, ...insertions: T[]): void {
     if (deletions === 0 && insertions.length === 0) return;
     this.#array.splice(index, deletions, ...insertions);
-    this.pushEvent({ kind: 'splice', index, deletions, insertions });
+    this._pushEvent({ kind: 'splice', index, deletions, insertions });
   }
   set (index: number, value: T): void {
     this.#array[index] = value;
-    this.pushEvent({ kind: 'set', index, value });
+    this._pushEvent({ kind: 'set', index, value });
   }
   batch (callback: (source: ArraySource.Manual<T>) => void): void {
+    // `batchDepth` accounts for the fact that we may begin a manual batch operation, but in the course of that
+    // operation may process `ArraySource.Event.Batch` events, leading to us making secondary calls to this same `batch`
+    // method while still inside the callback's execution scope. Seeing as we're buffering all the events in the batch,
+    // we don't want those secondary batch calls to to trigger their own event emissions prematurely. Tracking the depth
+    // ensures that all calls to `batch` will be buffered as part of the same top-level call, then all released as a
+    // single flat batch event when the callback returns. Or in simpler terms, it just means that the final batch
+    // emitted will be a flattened representation of all operations performed within the scope of the callback.
     if (++this.#batchDepth === 1) {
       this.#bufferedEvents = [];
     }

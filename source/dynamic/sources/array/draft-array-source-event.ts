@@ -178,7 +178,7 @@ export class DraftArraySourceEvent<T> {
    * Commits the accumulated operations and returns the optimized single event representing all changes.
    * @returns The committed event, or null if no changes were made.
    */
-  commit (): ArraySource.Event<T> | null {
+  createEvent (): ArraySource.Event<T> | null {
     // Perform a pass to apply simple optimizations.
     const optimized: ArraySource.Event<T>[] = [];
     for (const event of this.#events) {

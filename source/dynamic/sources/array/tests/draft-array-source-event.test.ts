@@ -10,7 +10,7 @@
  * ### Constructor and Basic State
  * - Constructor accepts initial array size and properly initializes internal state.
  * - Initial state has no segments and correct length tracking.
- * - `commit()` on an empty draft returns `null`.
+ * - `createEvent()` on an empty draft returns `null`.
  *
  * ### Individual Operation Methods (and simple optimizations)
  * - **Push**: Single/multiple values result in a single `push` event.
@@ -59,9 +59,9 @@ describe('DraftArraySourceEvent', () => {
       expect(() => draft.set(5, 'test')).toThrow('out of bounds');
     });
 
-    test('initial draft returns null on commit', () => {
+    test('initial draft returns null on createEvent', () => {
       const draft = new DraftArraySourceEvent<string>(5);
-      expect(draft.commit()).toBeNull();
+      expect(draft.createEvent()).toBeNull();
     });
   });
 
@@ -69,37 +69,37 @@ describe('DraftArraySourceEvent', () => {
     test('single push operation', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.push('a');
-      expect(draft.commit()).toEqual({ kind: 'push', values: ['a'] });
+      expect(draft.createEvent()).toEqual({ kind: 'push', values: ['a'] });
     });
 
     test('single pop operation', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.pop();
-      expect(draft.commit()).toEqual({ kind: 'splice', index: 2, deletions: 1, insertions: [] });
+      expect(draft.createEvent()).toEqual({ kind: 'splice', index: 2, deletions: 1, insertions: [] });
     });
 
     test('single unshift operation', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.unshift('a');
-      expect(draft.commit()).toEqual({ kind: 'unshift', values: ['a'] });
+      expect(draft.createEvent()).toEqual({ kind: 'unshift', values: ['a'] });
     });
 
     test('single shift operation', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.shift();
-      expect(draft.commit()).toEqual({ kind: 'splice', index: 0, deletions: 1, insertions: [] });
+      expect(draft.createEvent()).toEqual({ kind: 'splice', index: 0, deletions: 1, insertions: [] });
     });
 
     test('single splice operation', () => {
       const draft = new DraftArraySourceEvent<string>(5);
       draft.splice(1, 2, 'a', 'b');
-      expect(draft.commit()).toEqual({ kind: 'splice', index: 1, deletions: 2, insertions: ['a', 'b'] });
+      expect(draft.createEvent()).toEqual({ kind: 'splice', index: 1, deletions: 2, insertions: ['a', 'b'] });
     });
 
     test('single set operation', () => {
       const draft = new DraftArraySourceEvent<string>(5);
       draft.set(2, 'modified');
-      expect(draft.commit()).toEqual({ kind: 'set', index: 2, value: 'modified' });
+      expect(draft.createEvent()).toEqual({ kind: 'set', index: 2, value: 'modified' });
     });
   });
 
@@ -108,49 +108,49 @@ describe('DraftArraySourceEvent', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.push('a');
       draft.pop();
-      expect(draft.commit()).toBeNull();
+      expect(draft.createEvent()).toBeNull();
     });
 
     test('unshift followed by shift cancels out', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.unshift('a');
       draft.shift();
-      expect(draft.commit()).toBeNull();
+      expect(draft.createEvent()).toBeNull();
     });
 
     test('consecutive push operations merge', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.push('a');
       draft.push('b', 'c');
-      expect(draft.commit()).toEqual({ kind: 'push', values: ['a', 'b', 'c'] });
+      expect(draft.createEvent()).toEqual({ kind: 'push', values: ['a', 'b', 'c'] });
     });
 
     test('consecutive unshift operations merge', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.unshift('c');
       draft.unshift('a', 'b');
-      expect(draft.commit()).toEqual({ kind: 'unshift', values: ['a', 'b', 'c'] });
+      expect(draft.createEvent()).toEqual({ kind: 'unshift', values: ['a', 'b', 'c'] });
     });
 
     test('adjacent splices merge (insertion)', () => {
       const draft = new DraftArraySourceEvent<string>(5);
       draft.splice(2, 0, 'a');
       draft.splice(3, 0, 'b'); // Now at index 3 because of previous insertion
-      expect(draft.commit()).toEqual({ kind: 'splice', index: 2, deletions: 0, insertions: ['a', 'b'] });
+      expect(draft.createEvent()).toEqual({ kind: 'splice', index: 2, deletions: 0, insertions: ['a', 'b'] });
     });
 
     test('adjacent splices merge (deletion)', () => {
       const draft = new DraftArraySourceEvent<string>(5);
       draft.splice(2, 1);
       draft.splice(2, 1); // Now at index 2 because of previous deletion
-      expect(draft.commit()).toEqual({ kind: 'splice', index: 2, deletions: 2, insertions: [] });
+      expect(draft.createEvent()).toEqual({ kind: 'splice', index: 2, deletions: 2, insertions: [] });
     });
 
     test('overlapping splices do not merge and become a batch', () => {
       const draft = new DraftArraySourceEvent<string>(10);
       draft.splice(2, 5, 'a', 'b'); // Deletes 2,3,4,5,6
-      draft.splice(2, 2, 'c');    // Splice is relative to new state. Replaces 'a', 'b' with 'c'
-      const event = draft.commit() as ArraySource.Event.Batch<string>;
+      draft.splice(2, 2, 'c'); // Splice is relative to new state. Replaces 'a', 'b' with 'c'
+      const event = draft.createEvent() as ArraySource.Event.Batch<string>;
       expect(event.kind).toBe('batch');
       expect(event.events).toHaveLength(2);
       expect(event.events[0]).toEqual({ kind: 'splice', index: 2, deletions: 5, insertions: ['a', 'b'] });
@@ -161,7 +161,7 @@ describe('DraftArraySourceEvent', () => {
       const draft = new DraftArraySourceEvent<string>(0);
       draft.push('b');
       draft.unshift('a');
-      expect(draft.commit()).toEqual({ kind: 'unshift', values: ['a', 'b'] });
+      expect(draft.createEvent()).toEqual({ kind: 'unshift', values: ['a', 'b'] });
     });
   });
 
@@ -170,7 +170,7 @@ describe('DraftArraySourceEvent', () => {
       const draft = new DraftArraySourceEvent<string>(3);
       draft.push('a', 'b');
       draft.set(4, 'modified'); // Index 4 is the second pushed element
-      const event = draft.commit() as ArraySource.Event.Batch<string>;
+      const event = draft.createEvent() as ArraySource.Event.Batch<string>;
       expect(event.kind).toBe('batch');
       expect(event.events).toHaveLength(2);
       expect(event.events[0]).toEqual({ kind: 'splice', index: 3, deletions: 0, insertions: ['a', 'b'] });
@@ -181,7 +181,7 @@ describe('DraftArraySourceEvent', () => {
       const draft = new DraftArraySourceEvent<string>(10);
       draft.splice(2, 1, 'first');
       draft.set(8, 'last');
-      const event = draft.commit() as ArraySource.Event.Batch<string>;
+      const event = draft.createEvent() as ArraySource.Event.Batch<string>;
       expect(event.kind).toBe('batch');
       expect(event.events).toHaveLength(2);
       expect(event.events[0]).toEqual({ kind: 'splice', index: 2, deletions: 1, insertions: ['first'] });
@@ -211,7 +211,7 @@ describe('DraftArraySourceEvent', () => {
       const draft = new DraftArraySourceEvent<string>(0);
       draft.pop();
       draft.shift();
-      expect(draft.commit()).toBeNull();
+      expect(draft.createEvent()).toBeNull();
     });
 
     test('zero-length push/unshift/splice operations do nothing', () => {
@@ -219,7 +219,7 @@ describe('DraftArraySourceEvent', () => {
       draft.push();
       draft.unshift();
       draft.splice(1, 0);
-      expect(draft.commit()).toBeNull();
+      expect(draft.createEvent()).toBeNull();
     });
   });
 });

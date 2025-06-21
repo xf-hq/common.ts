@@ -69,8 +69,9 @@ export namespace ArraySource {
     export interface Batch<T> extends BaseEvent<'batch'> {
       readonly events: Event<T>[];
     }
+
+    export type Draft<T> = DraftArraySourceEvent<T>;
   }
-  export type Draft<T> = DraftArraySourceEvent<T>;
 
   export function subscribe<V, A extends any[]> (abort: AbortSignal, source: ArraySource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V> {
     const sub = source.subscribe(receiver, ...args);
@@ -91,6 +92,8 @@ export namespace ArraySource {
     set (index: number, value: T): void;
     batch (callback: (arraySource: Manual<T>) => void): void;
     clear (): void;
+    hold (): void;
+    release (): void;
   }
   export namespace Manual {
     export interface DemandObserver<T> {

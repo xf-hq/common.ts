@@ -5,7 +5,7 @@ export class DraftMapSourceEvent<K, V> {
   #change: Map<K, V> | null = null;
   #delete: Set<K> | null = null;
 
-  commit (): MapSource.Event<K, V> | null {
+  createEvent (): MapSource.Event<K, V> | null {
     if (!this.#add && !this.#change && !this.#delete) {
       return null;
     }
