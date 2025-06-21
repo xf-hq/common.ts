@@ -31,11 +31,7 @@ export interface ConsoleLogger {
   todo: (message: string, fields?: SRecord) => void;
   /** For printing an object to the console. */
   object: (value: any) => void;
-  group: {
-    (message: string, ...args: any[]): void;
-    warn: (message: string, ...args: any[]) => void;
-    endOnDispose: (message: string, ...args: any[]) => Disposable;
-  };
+  group: ConsoleLogger.Group;
   groupEnd: () => void;
   divider: () => void;
 }
@@ -46,6 +42,20 @@ export namespace ConsoleLogger {
      * other object with a `name` property is provided, the logger should use the value of that property as the topic.
      */
     (topic?: string | { readonly name: string }): ConsoleLogger;
+  }
+
+  export function Group (func: Group.Func, props: Group.Props): Group {
+    return Object.assign(func, props);
+  }
+  export interface Group extends Group.Func, Group.Props {}
+  export namespace Group {
+    export interface Func {
+      (message: string, ...args: any[]): void;
+    }
+    export interface Props {
+      warn: (message: string, ...args: any[]) => void;
+      endOnDispose: (message: string, ...args: any[]) => Disposable;
+    }
   }
 }
 
@@ -65,7 +75,7 @@ export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
   trace: () => {},
   todo: () => {},
   object: () => {},
-  group: Object.assign(() => {}, {
+  group: ConsoleLogger.Group(() => {}, {
     warn: () => {},
     endOnDispose: () => noopDispose,
   }),
@@ -96,7 +106,7 @@ export const DEFAULT_CONSOLE_LOGGER = new class DefaultConsoleLogger implements 
   object = (value: any) => {
     console.dir(value, { depth: null, colors: true, compact: true });
   };
-  group = Object.assign((message: string, ...args: any[]) => {
+  group = ConsoleLogger.Group((message: string, ...args: any[]) => {
     console.group(message, ...args);
   }, {
     warn: (message: string, ...args: any[]) => {
@@ -145,7 +155,7 @@ export class TaggedDefaultConsoleLogger implements ConsoleLogger {
   todo (message: string, fields?: SRecord) { DEFAULT_CONSOLE_LOGGER.todo(this.formatMessage(message), fields); }
   object = (value: any) => DEFAULT_CONSOLE_LOGGER.object(value);
 
-  group = Object.assign((message: string, ...args: any[]) => {
+  group = ConsoleLogger.Group((message: string, ...args: any[]) => {
     DEFAULT_CONSOLE_LOGGER.group(`[${this.tag}] ${message}`, ...args);
   }, {
     warn: (message: string, ...args: any[]) => {

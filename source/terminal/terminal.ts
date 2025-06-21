@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { multiplyHSL } from '../color/color-functions';
 import { StaticColor } from '../color/static-color';
-import type { ConsoleLogger } from '../facilities/logging';
+import { ConsoleLogger } from '../facilities/logging';
 import { neverRegisterAsDisposed } from '../general/disposables';
 import { isPlainObject, isString, isUndefined } from '../general/type-checking';
 import { amber800, colorizer, gray, gray400, gray700, gray800, gray900, lightBlue, lightBlue300, lime, orange, orange700, pink200, purple, red, red700, teal, yellow400 } from './colorizers';
@@ -129,9 +129,12 @@ export namespace terminal {
       trace: (message: string, ...args: any[]) => trace(getTopic(), message, ...args),
       todo: (message: string, fields?: SRecord) => todo(getTopic(), message, fields),
       object: (value: any) => console.dir(value, { depth: null }),
-      group: Object.assign((message: string, ...args: any[]) => group(getTopic(), message, ...args), {
+      group: ConsoleLogger.Group((message: string, ...args: any[]) => group(getTopic(), message, ...args), {
         warn: (message: string, ...args: any[]) => group.warn(getTopic(), message, ...args),
-        endOnDispose: () => GROUP_END,
+        endOnDispose: (message: string, ...args: any[]) => {
+          group(getTopic(), message, ...args);
+          return GROUP_END;
+        },
       }),
       groupEnd,
       divider,
