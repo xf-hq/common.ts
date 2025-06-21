@@ -2,7 +2,7 @@ import { dispose } from '../../../general/disposables';
 import { throwError } from '../../../general/errors';
 import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
-import { MapSourceSubscription, MapSourceTag } from './common';
+import { createMapSourceSubscription, MapSourceTag } from './common';
 import { MapSource } from './map-source';
 
 export class MappedMapSource<K, VA, VB> implements MapSource.Immediate<K, VB>, Subscribable.Receiver<[event: MapSource.Event<K, VA>]> {
@@ -22,9 +22,8 @@ export class MappedMapSource<K, VA, VB> implements MapSource.Immediate<K, VB>, S
   get __map () { return this.#mappedMap ??= throwError('Internal map not initialized.'); }
   get size () { return this.__map.size; }
 
-  subscribe<A extends any[]> (onChange: Subscribable.Subscriber<[event: MapSource.Event<K, VB>], A>, ...args: A): MapSource.Subscription<K, VB> {
-    const subscription = this.#emitter.subscribe(onChange, ...args);
-    return new MapSourceSubscription(this, subscription);
+  subscribe<A extends any[]> (receiver: Subscribable.Subscriber<[event: MapSource.Event<K, VB>], A>, ...args: A): MapSource.Subscription<K, VB> {
+    return createMapSourceSubscription(this, this.#emitter, receiver, args);
   }
 
   onDemandChange (event: Subscribable.DemandObserver.Event): void {
@@ -49,7 +48,7 @@ export class MappedMapSource<K, VA, VB> implements MapSource.Immediate<K, VB>, S
   }
   event (event: MapSource.Event<K, VA>): void {
     const map = this.#mappedMap!;
-    
+
     let mappedAdditions: Map<K, VB> | null = null;
     let mappedChanges: Map<K, VB> | null = null;
     let mappedDeletions: K[] | null = null;

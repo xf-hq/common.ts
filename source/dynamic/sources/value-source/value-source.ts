@@ -61,7 +61,7 @@ export namespace ValueSource {
   export function subscribe<T, A extends any[]> (abort: AbortSignal, source: ValueSource<T>, receiver: Subscriber<T, A>, ...args: A): ValueSource.Subscription<T> {
     const sub = source.subscribe(receiver, ...args);
     if (isFunction(receiver)) sub.echo();
-    disposeOnAbort(abort, sub)
+    disposeOnAbort(abort, sub);
     return sub;
   }
 

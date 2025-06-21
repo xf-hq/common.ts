@@ -1,9 +1,8 @@
-import { isDefined } from '../../../general/type-checking';
 import { dispose } from '../../../general/disposables';
 import { throwError } from '../../../general/errors';
 import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
-import { MapSourceSubscription, MapSourceTag } from './common';
+import { createMapSourceSubscription, MapSourceTag } from './common';
 import { MapSource } from './map-source';
 
 export class StatefulMappedMapSource<K, VA, VB, S, C> implements MapSource.Immediate<K, VB>, Subscribable.Receiver<[event: MapSource.Event<K, VA>]> {
@@ -25,9 +24,8 @@ export class StatefulMappedMapSource<K, VA, VB, S, C> implements MapSource.Immed
   get __map () { return this.#mappedMap ??= throwError('Internal map not initialized.'); }
   get size () { return this.__map.size; }
 
-  subscribe<A extends any[]> (onChange: Subscribable.Subscriber<[event: MapSource.Event<K, VB>], A>, ...args: A): MapSource.Subscription<K, VB> {
-    const subscription = this.#emitter.subscribe(onChange, ...args);
-    return new MapSourceSubscription(this, subscription);
+  subscribe<A extends any[]> (receiver: Subscribable.Subscriber<[event: MapSource.Event<K, VB>], A>, ...args: A): MapSource.Subscription<K, VB> {
+    return createMapSourceSubscription(this, this.#emitter, receiver, args);
   }
 
   onDemandChange (event: Subscribable.DemandObserver.Event): void {

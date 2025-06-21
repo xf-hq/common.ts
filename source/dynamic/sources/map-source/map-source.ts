@@ -1,4 +1,4 @@
-import { dispose } from '../../../general/disposables';
+import { dispose, disposeOnAbort } from '../../../general/disposables';
 import { isIterable } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { ArraySource } from '../array/array-source';
@@ -24,8 +24,10 @@ export interface MapSource<K, V> {
   subscribe<A extends any[]> (onChange: MapSource.Subscriber<K, V, A>, ...args: A): MapSource.Subscription<K, V>;
 }
 export namespace MapSource {
-  export type Receiver<K, V, A extends any[] = []> = Subscribable.Receiver<[event: MapSource.Event<K, V>], A>;
   export type Subscriber<K, V, A extends any[] = []> = Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>;
+  export interface Receiver<K, V, A extends any[] = []> extends Subscribable.Receiver<[event: MapSource.Event<K, V>], A> {
+    init? (subscription: MapSource.Subscription<K, V>, ...args: A): void;
+  }
   export interface Subscription<K, V> extends Disposable {
     readonly __map: ReadonlyMap<K, V>;
   }
@@ -67,8 +69,10 @@ export namespace MapSource {
       this.receiver.unsubscribed?.();
     }
   }
-  export function subscribe<K, V> (source: MapSource<K, V>, receiver: EventReceiver<K, V>): Subscription<K, V> {
-    return source.subscribe(new EventReceiverAdapter(receiver));
+  export function subscribe<K, V> (abortSignal: AbortSignal, source: MapSource<K, V>, receiver: Receiver<K, V>): Subscription<K, V> {
+    const sub = source.subscribe(receiver);
+    disposeOnAbort(abortSignal, sub);
+    return sub;
   }
 
   export interface Immediate<K, V> extends MapSource<K, V> {

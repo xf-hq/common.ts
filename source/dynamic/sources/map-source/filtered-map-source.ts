@@ -2,7 +2,7 @@ import { dispose } from '../../../general/disposables';
 import { throwError } from '../../../general/errors';
 import { bindMethod } from '../../../general/functional';
 import { Subscribable } from '../../core/subscribable';
-import { MapSourceSubscription, MapSourceTag } from './common';
+import { createMapSourceSubscription, MapSourceTag } from './common';
 import { MapSource } from './map-source';
 
 export class FilteredMapSource<K, V> implements MapSource.Immediate<K, V>, Subscribable.Receiver<[event: MapSource.Event<K, V>]> {
@@ -22,9 +22,8 @@ export class FilteredMapSource<K, V> implements MapSource.Immediate<K, V>, Subsc
   get __map () { return this.#filteredMap ??= throwError('Internal map not initialized.'); }
   get size () { return this.__map.size; }
 
-  subscribe<A extends any[]> (onChange: Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>, ...args: A): MapSource.Subscription<K, V> {
-    const subscription = this.#emitter.subscribe(onChange, ...args);
-    return new MapSourceSubscription(this, subscription);
+  subscribe<A extends any[]> (receiver: Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>, ...args: A): MapSource.Subscription<K, V> {
+    return createMapSourceSubscription(this, this.#emitter, receiver, args);
   }
 
   onDemandChange (event: Subscribable.DemandObserver.Event): void {
@@ -49,7 +48,7 @@ export class FilteredMapSource<K, V> implements MapSource.Immediate<K, V>, Subsc
   }
   event (event: MapSource.Event<K, V>): void {
     const map = this.#filteredMap!;
-    
+
     let filteredAdditions: Map<K, V> | null = null;
     let filteredChanges: Map<K, V> | null = null;
     let filteredDeletions: K[] | null = null;
@@ -69,7 +68,7 @@ export class FilteredMapSource<K, V> implements MapSource.Immediate<K, V>, Subsc
       for (const [key, value] of event.change) {
         const passes = this.testValue(value, key);
         const wasPresent = map.has(key);
-        
+
         if (passes) {
           map.set(key, value);
           if (wasPresent) {

@@ -1,5 +1,5 @@
 import { Subscribable } from '../../core/subscribable';
-import { MapSourceSubscription, MapSourceTag } from './common';
+import { createMapSourceSubscription, MapSourceTag } from './common';
 import { MapSource } from './map-source';
 
 export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSource.Manual<K, V> {
@@ -18,9 +18,8 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
   get __map () { return this.#map; }
   get size () { return this.#map.size; }
 
-  subscribe<A extends any[]> (onChange: Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>, ...args: A): MapSource.Subscription<K, V> {
-    const subscription = this.#emitter.subscribe(onChange, ...args);
-    return new MapSourceSubscription(this, subscription);
+  subscribe<A extends any[]> (receiver: Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>, ...args: A): MapSource.Subscription<K, V> {
+    return createMapSourceSubscription(this, this.#emitter, receiver, args);
   }
 
   hold (): void {
