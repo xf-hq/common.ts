@@ -15,13 +15,14 @@
     "uuid": "latest"
   },
   "peerDependencies": {
-    "chalk": "^5.4.1"
+    "chalk": "^4.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.26.0",
     "@stylistic/eslint-plugin": "^4.2.0",
     "@types/bun": "^1.2.11",
     "@types/diff-match-patch": "^1.0.36",
+    "@typescript-eslint/tsconfig-utils": "^8.34.1",
     "eslint": "^9.26.0",
     "typescript-eslint": "^8.31.1"
   }
