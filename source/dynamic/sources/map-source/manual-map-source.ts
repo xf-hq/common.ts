@@ -59,15 +59,15 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
     // Categorize changes into additions vs modifications
     if (assignments) {
       for (const [key, value] of assignments) {
-        if (!this.#map.has(key)) {
-          (additions ??= new Map()).set(key, value);
-        }
-        else if (this.#map.get(key) !== value) {
+        if (this.#map.has(key)) {
           (modifications ??= new Map()).set(key, value);
         }
-      }
-
-      for (const [key, value] of assignments) {
+        else if (this.#map.get(key) !== value) {
+          (additions ??= new Map()).set(key, value);
+        }
+        else {
+          continue;
+        }
         this.#map.set(key, value);
       }
     }
