@@ -11,6 +11,7 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
   }
   readonly #emitter: Subscribable.Controller<[event: ArraySource.Event<T>]>;
   readonly #array: T[];
+  readonly #status = new Subscribable.SignalStatus<[ArraySource.Event<T>]>();
 
   get [ArraySourceTag] () { return true as const; }
 
@@ -24,10 +25,17 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
   }
 
   hold (): void {
-    this.#emitter.hold();
+    if (this.#status.initiateHold()) {
+      this.#emitter.hold();
+    }
   }
   release (): void {
-    this.#emitter.release();
+    if (this.#status.releaseHold()) {
+      for (const [event] of this.#status.flush()) {
+        this._pushEvent(event);
+      }
+      this.#emitter.release();
+    }
   }
 
   #batchDepth = 0;
@@ -44,35 +52,77 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
   push (...values: T[]): void {
     if (values.length === 0) return;
     this.#array.push(...values);
-    this._pushEvent({ kind: 'push', values });
+    const event: ArraySource.Event<T> = { kind: 'push', values };
+    if (this.#status.isOnHold) {
+      this.#status.holdEvent(event);
+    }
+    else {
+      this._pushEvent({ kind: 'push', values });
+    }
   }
   pop (): T | undefined {
     if (this.#array.length === 0) return;
     const value = this.#array.pop()!;
-    this._pushEvent({ kind: 'pop' });
+    const event: ArraySource.Event<T> = { kind: 'pop' };
+    if (this.#status.isOnHold) {
+      this.#status.holdEvent(event);
+    }
+    else {
+      this._pushEvent(event);
+    }
     return value;
   }
   unshift (...values: T[]): void {
     if (values.length === 0) return;
     this.#array.unshift(...values);
-    this._pushEvent({ kind: 'unshift', values });
+    const event: ArraySource.Event<T> = { kind: 'unshift', values };
+    if (this.#status.isOnHold) {
+      this.#status.holdEvent(event);
+    }
+    else {
+      this._pushEvent(event);
+    }
   }
   shift (): T | undefined {
     if (this.#array.length === 0) return;
     const value = this.#array.shift()!;
-    this._pushEvent({ kind: 'shift' });
+    const event: ArraySource.Event<T> = { kind: 'shift' };
+    if (this.#status.isOnHold) {
+      this.#status.holdEvent(event);
+    }
+    else {
+      this._pushEvent(event);
+    }
     return value;
   }
-  splice (index: number, deletions: number, ...insertions: T[]): void {
-    if (deletions === 0 && insertions.length === 0) return;
-    this.#array.splice(index, deletions, ...insertions);
-    this._pushEvent({ kind: 'splice', index, deletions, insertions });
+  splice (index: number, deletions: number, ...insertions: T[]): T[] {
+    if (deletions === 0 && insertions.length === 0) return [];
+    const deleted = this.#array.splice(index, deletions, ...insertions);
+    const event: ArraySource.Event<T> = { kind: 'splice', index, deletions, insertions };
+    if (this.#status.isOnHold) {
+      this.#status.holdEvent(event);
+    }
+    else {
+      this._pushEvent(event);
+    }
+    return deleted;
   }
   set (index: number, value: T): void {
     this.#array[index] = value;
-    this._pushEvent({ kind: 'set', index, value });
+    const event: ArraySource.Event<T> = { kind: 'set', index, value };
+    if (this.#status.isOnHold) {
+      this.#status.holdEvent(event);
+    }
+    else {
+      this._pushEvent(event);
+    }
   }
   batch (callback: (source: ArraySource.Manual<T>) => void): void {
+    if (this.#status.isOnHold) {
+      // Everything's already on hold, so we can just call the callback directly.
+      callback(this);
+      return;
+    }
     // `batchDepth` accounts for the fact that we may begin a manual batch operation, but in the course of that
     // operation may process `ArraySource.Event.Batch` events, leading to us making secondary calls to this same `batch`
     // method while still inside the callback's execution scope. Seeing as we're buffering all the events in the batch,

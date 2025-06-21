@@ -4,7 +4,6 @@ import { isArray, isFunction } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { MapSource } from '../map-source/map-source';
 import { ArraySourceTag } from './common';
-import type { DraftArraySourceEvent } from './draft-array-source-event';
 import { FilteredArraySource } from './filtered-array-source';
 import { ManualArraySource } from './manual-array-source';
 import { MapSourceEntriesArraySource } from './map-source-entries-array-source';
@@ -69,8 +68,6 @@ export namespace ArraySource {
     export interface Batch<T> extends BaseEvent<'batch'> {
       readonly events: Event<T>[];
     }
-
-    export type Draft<T> = DraftArraySourceEvent<T>;
   }
 
   export function subscribe<V, A extends any[]> (abort: AbortSignal, source: ArraySource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V> {
@@ -88,7 +85,7 @@ export namespace ArraySource {
     pop (): T | undefined;
     unshift (...values: T[]): void;
     shift (): T | undefined;
-    splice (index: number, deletions: number, ...insertions: T[]): void;
+    splice (index: number, deletions: number, ...insertions: T[]): T[];
     set (index: number, value: T): void;
     batch (callback: (arraySource: Manual<T>) => void): void;
     clear (): void;
