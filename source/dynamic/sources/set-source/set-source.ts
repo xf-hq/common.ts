@@ -1,6 +1,7 @@
 import { isIterable } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import { SetSourceTag } from './common';
+import { DraftSetSourceEvent } from './draft-set-source-event';
 import { ManualSetSource } from './manual-set-source';
 
 export const isSetSource = <T, U> (source: SetSource<T> | U): source is SetSource<T> => source?.[SetSourceTag] === true;
@@ -15,10 +16,13 @@ export namespace SetSource {
   export interface Subscription<T> extends Disposable {
     readonly __set: ReadonlySet<T>;
   }
-
   export interface Event<T> {
     readonly add: ReadonlyArray<T> | null;
     readonly delete: ReadonlyArray<T> | null;
+  }
+  export namespace Event {
+    export function draft<T> () { return new DraftSetSourceEvent<T>(); }
+    export type Draft<T> = DraftSetSourceEvent<T>;
   }
   export interface Immediate<T> extends SetSource<T> {
     readonly __set: ReadonlySet<T>;
