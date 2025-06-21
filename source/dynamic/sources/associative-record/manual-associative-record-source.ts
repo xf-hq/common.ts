@@ -18,6 +18,13 @@ export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource
     return createAssociativeRecordSourceSubscription(this, this.#emitter, subscriber, args);
   }
 
+  hold (): void {
+    this.#emitter.hold();
+  }
+  release (): void {
+    this.#emitter.release();
+  }
+
   set (key: string, value: V): void;
   set (assignments: Record<string, V> | null, deletions?: string[] | null): void;
   set (keyOrAssignments: string | Record<string, V> | null, valueOrDeletions?: V | string[] | null): void {
@@ -107,5 +114,18 @@ export class ManualAssociativeRecordSource<V> implements AssociativeRecordSource
     if (keysToDelete.length > 0) {
       this.#emitter.event({ add: null, change: null, delete: keysToDelete });
     }
+  }
+
+  has (key: string): boolean {
+    return key in this.#record;
+  }
+  get (key: string): V | undefined {
+    return this.#record[key];
+  }
+  getOrThrow (key: string): V {
+    if (!this.has(key)) {
+      throw new Error(`Key "${key}" does not exist in the record.`);
+    }
+    return this.#record[key];
   }
 }

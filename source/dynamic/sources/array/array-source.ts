@@ -4,6 +4,7 @@ import { isArray, isFunction } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { MapSource } from '../map-source/map-source';
 import { ArraySourceTag } from './common';
+import type { DraftArraySourceEvent } from './draft-array-source-event';
 import { FilteredArraySource } from './filtered-array-source';
 import { ManualArraySource } from './manual-array-source';
 import { MapSourceEntriesArraySource } from './map-source-entries-array-source';
@@ -69,6 +70,7 @@ export namespace ArraySource {
       readonly events: Event<T>[];
     }
   }
+  export type Draft<T> = DraftArraySourceEvent<T>;
 
   export function subscribe<V, A extends any[]> (abort: AbortSignal, source: ArraySource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V> {
     const sub = source.subscribe(receiver, ...args);

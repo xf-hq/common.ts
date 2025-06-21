@@ -22,10 +22,18 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
     const subscription = this.#emitter.subscribe(onChange, ...args);
     return new MapSourceSubscription(this, subscription);
   }
+
+  hold (): void {
+    this.#emitter.hold();
+  }
+  release (): void {
+    this.#emitter.release();
+  }
+
   set (key: K, value: V): boolean {
     const wasExisting = this.#map.has(key);
     this.#map.set(key, value);
-    
+
     if (wasExisting) {
       this.#emitter.event({ add: null, change: new Map([[key, value]]), delete: null });
     }
@@ -34,7 +42,6 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
     }
     return true;
   }
-
   delete (key: K): boolean {
     if (!this.#map.delete(key)) return false;
     this.#emitter.event({ add: null, change: null, delete: [key] });
@@ -59,7 +66,7 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
           (modifications ??= new Map()).set(key, value);
         }
       }
-      
+
       for (const [key, value] of assignments) {
         this.#map.set(key, value);
       }
@@ -85,8 +92,14 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
     }
   }
 
-  get (key: K): V | undefined { return this.#map.get(key); }
   has (key: K): boolean { return this.#map.has(key); }
+  get (key: K): V | undefined { return this.#map.get(key); }
+  getOrThrow (key: K): V {
+    if (!this.#map.has(key)) {
+      throw new Error(`The specified key does not exist in the map`);
+    }
+    return this.#map.get(key)!;
+  }
   keys (): Iterable<K> { return this.#map.keys(); }
   values (): Iterable<V> { return this.#map.values(); }
   entries (): Iterable<[K, V]> { return this.#map.entries(); }

@@ -32,6 +32,11 @@ export namespace AssociativeRecordSource {
     readonly change: Readonly<Record<string, V>> | null;
     readonly delete: ReadonlyArray<string> | null;
   }
+  export type DraftEvent<V> = {
+    add: Record<string, V> | null;
+    change: Record<string, V> | null;
+    delete: string[] | null;
+  }
 
   export function subscribe<V, A extends any[]> (abort: AbortSignal, source: AssociativeRecordSource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V> {
     const sub = source.subscribe(receiver, ...args);
@@ -43,11 +48,17 @@ export namespace AssociativeRecordSource {
     readonly __record: Readonly<Record<string, V>>;
   }
   export interface Manual<V> extends Immediate<V> {
+    hold (): void;
+    release (): void;
     set (key: string, value: V): void;
     set (assignments: Record<string, V> | null, deletions?: string[] | null): void;
     delete (key: string): boolean;
     delete (keys: string[]): boolean;
     clear (): void;
+
+    has (key: string): boolean;
+    get (key: string): V | undefined;
+    getOrThrow (key: string): V;
   }
 
   export function create<V> (record: Record<string, V> = {}): Manual<V> {

@@ -3,6 +3,7 @@ import { isIterable } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { ArraySource } from '../array/array-source';
 import { type MapSourceTag } from './common';
+import { DraftMapSourceEvent } from './draft-map-source-event';
 import { FilteredMapSource } from './filtered-map-source';
 import { ManualMapSource } from './manual-map-source';
 import { MapSourceFromEntries } from './map-source-from-entries';
@@ -32,6 +33,10 @@ export namespace MapSource {
     readonly add: ReadonlyMap<K, V> | null;
     readonly change: ReadonlyMap<K, V> | null;
     readonly delete: ReadonlyArray<K> | null;
+  }
+  export namespace Event {
+    export function draft<K, V> () { return new DraftMapSourceEvent<K, V>(); }
+    export type Draft<K, V> = DraftMapSourceEvent<K, V>;
   }
   export interface EventReceiver<K, V> {
     add? (entries: ReadonlyMap<K, V>): void;
@@ -73,13 +78,17 @@ export namespace MapSource {
   export interface Manual<K, V> extends Immediate<K, V> {
     readonly __emitter: Subscribable.Controller.Auxiliary<[event: MapSource.Event<K, V>]>;
 
+    hold (): void;
+    release (): void;
+
     set (key: K, value: V): boolean;
     delete (key: K): boolean;
     clear (): void;
     modify (assignments: ReadonlyMap<K, V> | null, deletions: ReadonlyArray<K> | null): void;
 
-    get (key: K): V | undefined;
     has (key: K): boolean;
+    get (key: K): V | undefined;
+    getOrThrow (key: K): V;
     keys (): Iterable<K>;
     values (): Iterable<V>;
     entries (): Iterable<[K, V]>;
