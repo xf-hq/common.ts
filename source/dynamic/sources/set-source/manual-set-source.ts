@@ -14,11 +14,20 @@ export class ManualSetSource<T> implements SetSource.Manual<T> {
 
   get [SetSourceTag] () { return true as const; }
 
+  get __emitter () { return this.#emitter; }
   get __set () { return this.#set; }
   get size () { return this.#set.size; }
+
   subscribe<A extends any[]> (onChange: SetSource.Subscriber<T, A>, ...args: A): SetSource.Subscription<T> {
     const subscription = this.#emitter.subscribe(onChange, ...args);
     return new SetSourceSubscription(this, subscription);
+  }
+
+  hold (): void {
+    this.#emitter.hold();
+  }
+  release (): void {
+    this.#emitter.release();
   }
 
   add (value: T): void {

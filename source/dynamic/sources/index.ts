@@ -8,6 +8,8 @@ export * from './value-source/number-source';
 export * from './value-source/string-source';
 export * from './value-source/value-source';
 
+export * from './common';
+
 import { ArraySource } from './array/array-source';
 import { AssociativeRecordSource } from './associative-record/associative-record-source';
 import { FixedRecordSource } from './fixed-record/fixed-record-source';

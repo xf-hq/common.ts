@@ -36,7 +36,7 @@ export namespace AssociativeRecordSource {
     add: Record<string, V> | null;
     change: Record<string, V> | null;
     delete: string[] | null;
-  }
+  };
 
   export function subscribe<V, A extends any[]> (abort: AbortSignal, source: AssociativeRecordSource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V> {
     const sub = source.subscribe(receiver, ...args);
@@ -50,6 +50,7 @@ export namespace AssociativeRecordSource {
   export interface Manual<V> extends Immediate<V> {
     hold (): void;
     release (): void;
+
     set (key: string, value: V): void;
     set (assignments: Record<string, V> | null, deletions?: string[] | null): void;
     delete (key: string): boolean;

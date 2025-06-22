@@ -29,6 +29,11 @@ export namespace SetSource {
     readonly size: number;
   }
   export interface Manual<T> extends Immediate<T> {
+    readonly __emitter: Subscribable.Controller.Auxiliary<[event: SetSource.Event<T>]>;
+
+    hold (): void;
+    release (): void;
+
     add (value: T): void;
     delete (value: T): boolean;
     clear (): void;

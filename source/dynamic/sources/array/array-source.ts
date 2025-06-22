@@ -81,6 +81,9 @@ export namespace ArraySource {
     readonly length: number;
   }
   export interface Manual<T> extends Immediate<T> {
+    hold (): void;
+    release (): void;
+
     push (...values: T[]): void;
     pop (): T | undefined;
     unshift (...values: T[]): void;
@@ -89,8 +92,6 @@ export namespace ArraySource {
     set (index: number, value: T): void;
     batch (callback: (arraySource: Manual<T>) => void): void;
     clear (): void;
-    hold (): void;
-    release (): void;
   }
   export namespace Manual {
     export interface DemandObserver<T> {
