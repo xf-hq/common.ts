@@ -81,7 +81,11 @@ interface ConnectionCallback {
 }
 function tryConnect (wssurl: string, callback: ConnectionCallback) {
   console.debug(`Attempting to connect to WebSocket server at ${wssurl}...`);
-  const ws = new WebSocket(wssurl);
+  const ws = new WebSocket(wssurl, {
+    tls: {
+      rejectUnauthorized: new URL(wssurl).hostname !== 'localhost',
+    },
+  });
   ws.addEventListener('open', () => {
     console.debug(`WebSocket connection established.`);
   });
