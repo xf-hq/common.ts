@@ -14,6 +14,16 @@ export function createChildAbortController (upstream: AbortSignal): AbortControl
  * detachment is automatic or manual, doing so will trigger an abort event if the signal being detached is the last one
  * in the set. When this happens, the controller's owner should clean up any resources they're maintaining and discard
  * the current controller. A new controller can be created if future demand should arise.
+ *
+ * How to use this for the management of a shared resource:
+ * ```ts
+ * const current = this.#current ??= SharedDemandAbortController.initializeSharedResource((abortSignal) => [
+ *   initializeAndReturnYourResource(abortSignal),
+ *   () => cleanUpYourResource(),
+ * ]);
+ * current.controller.attach(abortSignal);
+ * return current.resource;
+ * ```
  */
 export class SharedDemandAbortController extends AbortController {
   readonly #signals = new Map<AbortSignal, () => void>();
@@ -41,7 +51,7 @@ export class SharedDemandAbortController extends AbortController {
     super.abort();
   }
 
-  static initializeSharedResource<T> (init: (signal: AbortSignal) => [resource: T, cleanUp: () => void]): SharedDemandAbortController.Current<T> {
+  static initializeSharedResource<T> (init: (abortSignal: AbortSignal) => [resource: T, cleanUp: () => void]): SharedDemandAbortController.Current<T> {
     const controller = new SharedDemandAbortController();
     const [resource, cleanUp] = init(controller.signal);
     controller.signal.addEventListener('abort', cleanUp);

@@ -31,6 +31,10 @@
     "source/**/*.ts"
   ],
   "exclude": [
-    "source/**/*.old.ts"
+    "**/*.old.ts",
+    "**/*.old",
+    "**/*.OLD.ts",
+    "**/*.OLD",
+    "**/*.test.ts",
   ]
 }

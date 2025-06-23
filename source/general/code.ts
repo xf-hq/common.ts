@@ -1,5 +1,4 @@
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
-import * as VM from 'node:vm';
 import { isNothing } from './type-checking';
 
 export type ReservedWord = 'await' | 'break' | 'case' | 'catch' | 'class' | 'const' | 'continue' | 'debugger' | 'default' | 'delete' | 'do' | 'else' | 'enum' | 'export' | 'extends' | 'false' | 'finally' | 'for' | 'function' | 'if' | 'implements' | 'import' | 'in' | 'instanceof' | 'interface' | 'let' | 'new' | 'null' | 'package' | 'private' | 'protected' | 'public' | 'return' | 'super' | 'switch' | 'static' | 'this' | 'throw' | 'try' | 'True' | 'typeof' | 'var' | 'void' | 'while' | 'with' | 'yield';
@@ -88,10 +87,6 @@ export function compileTS<T extends Record<string, any>> (ts: string, env?: Reco
   const js = transpileTypeScriptCode(ts);
   return compileJS(js, env);
 }
-export function compileTSWithVM<T extends Record<string, any>> (ts: string, env?: Record<string, any>): T {
-  const js = transpileTypeScriptCode(ts);
-  return compileJSWithVM(js, env);
-}
 
 /**
  * Compile JavaScript code with environment bindings using the Function constructor.
@@ -116,29 +111,6 @@ export function compileJS<T extends Record<string, any>> (js: string, env?: Reco
   }
   catch (e) {
     console.error(`Error compiling script`, e);
-    return exports;
-  }
-}
-
-/**
- * Compile JavaScript code with environment bindings using Node.js VM for better isolation.
- * Provides better security and isolation compared to the Function constructor approach.
- * @returns The exports object containing the compiled code's exports.
- */
-export function compileJSWithVM<T extends Record<string, any>> (js: string, env?: Record<string, any>): T {
-  const exports = {} as T;
-
-  try {
-    const context = VM.createContext({
-      ...env,
-      exports,
-    });
-
-    VM.runInContext(js, context);
-    return exports;
-  }
-  catch (e) {
-    console.error(`Error compiling script with VM`, e);
     return exports;
   }
 }
