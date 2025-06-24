@@ -1,4 +1,4 @@
-import type { PathReader } from '../facilities/path-reader';
+import type { PathLens } from '../facilities/path-lens';
 import { isFunction } from '../general/type-checking.ts';
 
 export namespace Messaging {
@@ -37,12 +37,12 @@ export namespace Messaging {
   }
 
   export interface InboundMessageContext<TData = unknown> {
-    readonly messageType: PathReader;
+    readonly messageType: PathLens;
     readonly messageData: TData;
   }
 
   export interface InboundRequestMessageContext<TData = unknown> extends InboundMessageContext<TData> {
-    readonly messageType: PathReader;
+    readonly messageType: PathLens;
     readonly messageData: TData;
     readonly response: ResponseInterface;
   }
@@ -82,13 +82,13 @@ export namespace Messaging {
 
   function _handleMessage<TContext extends InboundMessageContext> (routerLabel: string, context: TContext, handlers: Record<string, MessageHandler<TContext>>): void {
     const messageType = context.messageType;
-    const destinationRouteName = messageType.currentSegment;
+    const destinationRouteName = messageType.segmentValue;
     const handler = handlers[destinationRouteName];
     if (handler) {
-      messageType.advanceToNextSegment();
+      context = { ...context, messageType: messageType.nextSegment };
       return handler.handleMessage(context);
     }
-    else console.warn(`[${routerLabel}] Unhandled message type "${messageType.currentSegment}" in path "${messageType.fullPath}".`);
+    else console.warn(`[${routerLabel}] Unhandled message type "${messageType.segmentValue}" in path "${messageType.fullPath}".`);
   }
 
   export function RequestRouter<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> (label: string, props: RequestRouterProps<TContext, UContext>): MessageHandler<TContext> {
