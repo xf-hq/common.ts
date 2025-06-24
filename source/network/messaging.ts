@@ -1,5 +1,4 @@
 import type { PathReader } from '../facilities/path-reader';
-import type { DisposableGroup } from '../general/disposables.ts';
 import { isFunction } from '../general/type-checking.ts';
 
 export namespace Messaging {
@@ -11,7 +10,7 @@ export namespace Messaging {
     export interface Request<TRef = unknown> extends Message<typeof Request.Type, Request.Data<TRef>> {}
     export function Request<TRef> (ref: TRef, message: Message): Request<TRef> { return { type: Request.Type, data: { ref, message } }; }
     export namespace Request {
-      export const Type = '@@sx.messaging.request';
+      export const Type = '@@messaging:request';
 
       export interface Data<TRef = any> {
         readonly ref: TRef;
@@ -21,14 +20,14 @@ export namespace Messaging {
       export interface Cancel<TRef = unknown> extends Message<typeof Cancel.Type, unknown> {}
       export function Cancel<TRef> (ref: unknown): Cancel { return { type: Cancel.Type, data: { ref } }; }
       export namespace Cancel {
-        export const Type = '@@sx.messaging.cancel';
+        export const Type = '@@messaging:cancel';
       }
     }
 
     export interface Response<TRef = unknown> extends Message<typeof Response.Type, Response.Data<TRef>> {}
     export function Response<TRef> (ref: TRef, message: Message): Response<TRef> { return { type: Response.Type, data: { ref, message } }; }
     export namespace Response {
-      export const Type = '@@sx.messaging.response';
+      export const Type = '@@messaging:response';
 
       export interface Data<TRef = any> {
         readonly ref: TRef;
@@ -56,12 +55,11 @@ export namespace Messaging {
      * follow-up messages to the channel.
      */
     send (responseMessage: Message): void;
-    openPersistentChannel (ref: any, handler: MessageHandler): PersistentChannel;
+    openPersistentChannel (abortSignal: AbortSignal, ref: any, handler: MessageHandler): PersistentChannel;
   }
 
-  export interface PersistentChannel extends Disposable {
-    readonly ref: any;
-    readonly disposables: DisposableGroup;
+  export interface PersistentChannel {
+    readonly abortSignal: AbortSignal;
     send (message: Message): void;
   }
 
