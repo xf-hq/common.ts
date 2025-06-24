@@ -8,6 +8,10 @@ import { ConstantValueSource } from './constant-value-source';
 import { ManualCounterSource, ManualValueSource } from './manual-value-source';
 import type { NumberSource } from './number-source';
 
+export function isValueSource (value: any): value is ValueSource<any> {
+  return value?.[ValueSourceTag] === true;
+}
+
 /**
  * To consume a `ValueSource`:
  * - First define any state that needs to be maintained based on the value.

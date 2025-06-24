@@ -299,7 +299,9 @@ export namespace Subscribable {
     get isOnHold () { return this.#holdCount > 0; }
     get isEnded () { return this.#isEnded; }
     get isUnsubscribed () { return this.#isUnsubscribed; }
+    get hasBufferedEvents () { return this._events.buffer.length > 0; }
     get bufferedEventCount () { return this._events.buffer.length; }
+    get isFlushing () { return this._events.flushing; }
 
     /**
      * Increments the reference counter for the current HOLD state.

@@ -5,6 +5,10 @@ import { FilteredAssociativeRecordSource } from './filtered-associative-record-s
 import { ManualAssociativeRecordSource } from './manual-associative-record-source';
 import { MappedAssociativeRecordSource } from './mapped-associative-record-source';
 
+export function isAssociativeRecordSource (value: any): value is AssociativeRecordSource<any> {
+  return value?.[AssociativeRecordSourceTag] === true;
+}
+
 /**
  * To consume a `AssociativeRecordSource`:
  * - First define any state that needs to be maintained based on the record.

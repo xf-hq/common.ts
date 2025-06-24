@@ -1,3 +1,4 @@
+import { createChildAbortController } from '../../../general/abort-signals';
 import { dispose, disposeOnAbort } from '../../../general/disposables';
 import { returnVoid } from '../../../general/presets';
 import { isArray, isFunction } from '../../../general/type-checking';
@@ -5,6 +6,7 @@ import { Subscribable } from '../../core/subscribable';
 import type { MapSource } from '../map-source/map-source';
 import { ArraySourceTag } from './common';
 import { FilteredArraySource } from './filtered-array-source';
+import { FluentArraySource } from './fluent-array-source';
 import { ManualArraySource } from './manual-array-source';
 import { MapSourceEntriesArraySource } from './map-source-entries-array-source';
 import { MappedArraySource } from './mapped-array-source';
@@ -100,6 +102,29 @@ export namespace ArraySource {
       subscribe? (source: Manual<T>, receiver: Subscribable.Receiver<[event: ArraySource.Event<T>], any[]>): void;
       unsubscribe? (source: Manual<T>, receiver: Subscribable.Receiver<[event: ArraySource.Event<T>], any[]>): void;
     }
+    export namespace DemandObserver {
+      export function create<T> (online: (abortSignal: AbortSignal, array: Manual<T>) => void): DemandObserver<T>;
+      export function create<T> (abortSignal: AbortSignal, online: (abortSignal: AbortSignal, array: Manual<T>) => void): DemandObserver<T>;
+      export function create<T> (arg0: AbortSignal | ((abortSignal: AbortSignal, array: Manual<T>) => void), arg1?: (abortSignal: AbortSignal, array: Manual<T>) => void): DemandObserver<T> {
+        let abortController: AbortController | undefined;
+        return {
+          online (source: Manual<T>) {
+            if (isFunction(arg0)) {
+              abortController = new AbortController();
+              arg0(abortController.signal, source);
+            }
+            else {
+              abortController = createChildAbortController(arg0 as AbortSignal);
+              arg1!(abortController.signal, source);
+            }
+          },
+          offline () {
+            abortController!.abort();
+            abortController = undefined;
+          },
+        };
+      }
+    }
   }
 
   export function create<T> (array?: T[]): Manual<T>;
@@ -108,6 +133,17 @@ export namespace ArraySource {
   export function create<T> (arg0?: T[] | Manual.DemandObserver<T>, arg1?: Manual.DemandObserver<T>): Manual<T> {
     const [array, onDemandChanged] = isArray(arg0) ? [arg0, arg1] : [[], arg0];
     return new ManualArraySource(array, onDemandChanged);
+  }
+
+  export type Fluent<T> = FluentArraySource<T>;
+
+  export function createFluent<T> (onDemandChanged: Manual.DemandObserver<T>): Fluent<T> {
+    const source = create(onDemandChanged);
+    return new FluentArraySource(source);
+  }
+
+  export function fluent<T> (source: ArraySource<T>): Fluent<T> {
+    return new FluentArraySource(source);
   }
 
   export interface StatefulMapper<A, B, TItemState, TCommonState = void> {

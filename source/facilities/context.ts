@@ -475,7 +475,7 @@ export namespace Context {
       /**
        * Shortcut to `this.abort.disposables.add(disposable)`
        */
-      addDisposable (...disposable: LooseDisposable[]): this {
+      disposeOnAbort (...disposable: LooseDisposable[]): this {
         this.disposables.add(disposable);
         return this;
       }
