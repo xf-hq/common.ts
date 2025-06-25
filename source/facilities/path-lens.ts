@@ -109,7 +109,7 @@ export class PathLens {
   }
   get pathFromSegmentStart (): string {
     if (this.isEnd) return '';
-    if (this.isLastSegment) return this.fullPath;
+    if (this.isLastSegment) return this.segmentValue;
     const segment = this.#fields.segments[this.#segments_i];
     if (isUndefined(segment.pathFromSegmentStart)) {
       segment.pathFromSegmentStart = this.#fields.path.substring(segment.path_i);
@@ -131,5 +131,15 @@ export class PathLens {
   #next?: PathLens;
   get nextSegment (): PathLens {
     return this.#next ??= this.isEnd ? this : new PathLens(this.#fields, this.#segments_i + 1, this);
+  }
+
+  toString (): string {
+    const parts: string[] = [];
+    const before = this.pathToSegmentStart;
+    if (before) parts.push(before);
+    parts.push(`[${this.segmentValue}]`);
+    const after = this.pathFromSegmentEnd;
+    if (after) parts.push(after);
+    return parts.join(this.#fields.separator);
   }
 }

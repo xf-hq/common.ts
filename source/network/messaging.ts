@@ -1,4 +1,5 @@
-import type { PathLens } from '../facilities/path-lens';
+import type { ConsoleLogger } from '../facilities/logging';
+import { PathLens } from '../facilities/path-lens';
 import { isFunction } from '../general/type-checking.ts';
 
 export namespace Messaging {
@@ -39,11 +40,10 @@ export namespace Messaging {
   export interface InboundMessageContext<TData = unknown> {
     readonly messageType: PathLens;
     readonly messageData: TData;
+    advanceToNextRoute (messageType: PathLens, current: this): this;
   }
 
   export interface InboundRequestMessageContext<TData = unknown> extends InboundMessageContext<TData> {
-    readonly messageType: PathLens;
-    readonly messageData: TData;
     readonly response: ResponseInterface;
   }
 
@@ -55,7 +55,7 @@ export namespace Messaging {
      * follow-up messages to the channel.
      */
     send (responseMessage: Message): void;
-    openPersistentChannel (abortSignal: AbortSignal, ref: any, handler: MessageHandler): PersistentChannel;
+    openPersistentChannel (abortSignal: AbortSignal, handler: MessageHandler): PersistentChannel;
   }
 
   export interface PersistentChannel {
@@ -64,68 +64,59 @@ export namespace Messaging {
   }
 
   export interface MessageHandler<TContext extends InboundMessageContext = InboundMessageContext> {
-    handleMessage (context: TContext): void;
+    handleMessage (context: TContext, log: ConsoleLogger): void;
   }
 
   export type HandlersArg<TContext extends InboundMessageContext = InboundMessageContext> = Record<string, MessageHandler<TContext> | MessageHandler<TContext>['handleMessage']>;
 
-  export function MessageRouter<TContext extends InboundMessageContext> (label: string, handlers: Record<string, MessageHandler<TContext> | MessageHandler<TContext>['handleMessage']>): MessageHandler<TContext> {
+  export const MessageRouterFactory = (createLogger: ConsoleLogger.Factory) => ({
+    MessageRouter<TContext extends InboundMessageContext> (label: string, handlers: HandlersArg<TContext>): MessageHandler<TContext> {
+      const log = createLogger(label);
+      return MessageRouter(label, log, handlers);
+    },
+    RequestRouter<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext>(label: string, props: RequestRouterConfig<TContext, UContext>): MessageHandler<TContext> {
+      const log = createLogger(label);
+      return RequestRouter(label, log, props);
+    },
+  });
+
+  export function MessageRouter<TContext extends InboundMessageContext> (label: string, log: ConsoleLogger, handlers: Record<string, MessageHandler<TContext> | MessageHandler<TContext>['handleMessage']>): MessageHandler<TContext> {
     const _handlers: Record<string, MessageHandler<TContext>> = {};
     for (const key in handlers) {
       const handler = handlers[key];
       _handlers[key] = isFunction(handler) ? { handleMessage: handler } : handler;
     }
     return {
-      handleMessage: (context) => _handleMessage(label, context, _handlers),
+      handleMessage: (context) => _handleMessage(label, log, context, _handlers),
     };
   }
 
-  function _handleMessage<TContext extends InboundMessageContext> (routerLabel: string, context: TContext, handlers: Record<string, MessageHandler<TContext>>): void {
+  function _handleMessage<TContext extends InboundMessageContext> (routerLabel: string, log: ConsoleLogger, context: TContext, handlers: Record<string, MessageHandler<TContext>>): void {
+    // using _ = log.group.endOnDispose(`Incoming message: ${context.messageType}`, context.messageType.pathFromSegmentEnd);
     const messageType = context.messageType;
     const destinationRouteName = messageType.segmentValue;
     const handler = handlers[destinationRouteName];
     if (handler) {
-      context = { ...context, messageType: messageType.nextSegment };
-      return handler.handleMessage(context);
+      context = context.advanceToNextRoute(messageType.nextSegment, context);
+      return handler.handleMessage(context, log);
     }
     else console.warn(`[${routerLabel}] Unhandled message type "${messageType.segmentValue}" in path "${messageType.fullPath}".`);
   }
 
-  export function RequestRouter<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> (label: string, props: RequestRouterProps<TContext, UContext>): MessageHandler<TContext> {
-    const router = MessageRouter(label, props.routes);
-    let createRequestContext: (context: TContext, request: Messaging.Message.Request.Data) => UContext;
-    if ('createResponseInterface' in props) {
-      createRequestContext = (context, request) => {
-        const responseInterface = props.createResponseInterface(context, request.ref);
-        return {
-          messageType: context.messageType,
-          messageData: request.message,
-          response: responseInterface,
-        } as UContext;
-      };
-    }
-    else {
-      createRequestContext = props.createRequestContext;
-    }
+  export function RequestRouter<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> (label: string, log: ConsoleLogger, config: RequestRouterConfig<TContext, UContext>): MessageHandler<TContext> {
+    const router = MessageRouter(label, log, config.routes);
     return {
-      handleMessage: (context) => {
-        const requestContext = createRequestContext(context, context.messageData as Messaging.Message.Request.Data);
-        return router.handleMessage(requestContext);
+      handleMessage: (context, log) => {
+        const request = context.messageData as Messaging.Message.Request.Data;
+        const requestType = PathLens.from(':', request.message.type);
+        const requestData = PathLens.from(':', request.message.data);
+        const requestContext = config.createRequestContext(context, requestType, requestData, request.ref);
+        return router.handleMessage(requestContext, log);
       },
     };
   }
-  export type RequestRouterProps<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> =
-    | RequestRouterProps.Basic<TContext, UContext>
-    | RequestRouterProps.Extensible<TContext, UContext>
-  ;
-  export namespace RequestRouterProps {
-    export interface Basic<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> {
-      createResponseInterface: (context: TContext, ref: unknown) => ResponseInterface;
-      routes: Record<string, MessageHandler<UContext> | MessageHandler<UContext>['handleMessage']>;
-    }
-    export interface Extensible<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> {
-      createRequestContext: (context: TContext, request: Messaging.Message.Request.Data) => UContext;
-      routes: Record<string, MessageHandler<UContext> | MessageHandler<UContext>['handleMessage']>;
-    }
+  export interface RequestRouterConfig<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> {
+    createRequestContext: (context: TContext, requestType: PathLens, requestData: any, ref: unknown) => UContext;
+    routes: Record<string, MessageHandler<UContext> | MessageHandler<UContext>['handleMessage']>;
   }
 }
