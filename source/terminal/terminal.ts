@@ -27,14 +27,14 @@ export namespace terminal {
     const icon = options.icon ? `${options.icon} ` : '';
     if (tag) {
       const _tag = brightColor(tag ?? '');
-      return (topic: string | null, message: string, ...args: any[]) => {
-        const callerNamePrefix = topic ? `${brightColor(topic)} | ` : '';
+      return (label: string | null, message: string, ...args: any[]) => {
+        const callerNamePrefix = label ? `${brightColor(label)} | ` : '';
         log(subduedColor(`${icon}${_tag} | ${callerNamePrefix}${defaultColor(String(message))}`), ...args);
       };
     }
     else {
-      return (topic: string | null, message: string, ...args: any[]) => {
-        const callerNamePrefix = topic ? `${brightColor(topic)} | ` : '';
+      return (label: string | null, message: string, ...args: any[]) => {
+        const callerNamePrefix = label ? `${brightColor(label)} | ` : '';
         log(subduedColor(`${icon}${callerNamePrefix}${defaultColor(String(message))}`), ...args);
       };
     }
@@ -45,23 +45,23 @@ export namespace terminal {
 
   const errorDefault = taggedConsoleLogger({ defaultColor: red });
   const errorGrouped = taggedConsoleLogger({ defaultColor: red, log: console.group });
-  export function error (topic: string | null, message: string | Error, ...args: any[]) {
+  export function error (label: string | null, message: string | Error, ...args: any[]) {
     if (message instanceof Error) {
       const error = message;
       message = error.message;
-      errorGrouped(topic, message);
+      errorGrouped(label, message);
       console.error(red700(error.stack));
       console.groupEnd();
       return;
     }
     if (args.length === 1 && args[0] instanceof Error) {
       const error = args[0];
-      errorGrouped(topic, message);
+      errorGrouped(label, message);
       console.error(red700(error.stack));
       console.groupEnd();
       return;
     }
-    errorDefault(topic, message, ...args);
+    errorDefault(label, message, ...args);
   }
   export const critical = taggedConsoleLogger({ defaultColor: red, log: console.error });
   export const working = taggedConsoleLogger({ defaultColor: amber800, log: console.info });
@@ -98,9 +98,9 @@ export namespace terminal {
         console.log(formatKey(key), value);
       }
     };
-    return (topic: string | null, message: string, fields?: SRecord) => {
-      if (!isPlainObject(fields)) return isUndefined(fields) ? log(topic, message) : log(topic, message, fields);
-      group(topic, message);
+    return (label: string | null, message: string, fields?: SRecord) => {
+      if (!isPlainObject(fields)) return isUndefined(fields) ? log(label, message) : log(label, message, fields);
+      group(label, message);
       logPlainObject(fields!);
       groupEnd();
     };
@@ -111,28 +111,28 @@ export namespace terminal {
   export const groupEnd = console.groupEnd;
   export const divider = () => console.log(gray700('------------------------------------------------------------------------------------------------------------------------'));
 
-  export const logger: ConsoleLogger.Factory = (topic?: string | { readonly name: string }): ConsoleLogger => {
-    const getTopic = topic ? isString(topic) ? () => topic : () => topic.name : () => null;
+  export const logger: ConsoleLogger.Factory = (label?: string | { readonly name: string }): ConsoleLogger => {
+    const getLabel = label ? isString(label) ? () => label : () => label.name : () => null;
     const logger: ConsoleLogger = {
-      fatal: (message: string, ...args: any[]) => error(getTopic(), message, ...args),
-      error: (message: string | Error, ...args: any[]) => error(getTopic(), message, ...args),
-      critical: (message: string, ...args: any[]) => critical(getTopic(), message, ...args),
-      problem: (message: string, ...args: any[]) => critical(getTopic(), message, ...args),
-      working: (message: string, ...args: any[]) => working(getTopic(), message, ...args),
-      good: (message: string, ...args: any[]) => good(getTopic(), message, ...args),
-      boring: (message: string, ...args: any[]) => boring(getTopic(), message, ...args),
-      info: (message: string, ...args: any[]) => info(getTopic(), message, ...args),
-      default: (message: string, ...args: any[]) => log(getTopic(), message, ...args),
-      verbose: (message: string, ...args: any[]) => verbose(getTopic(), message, ...args),
-      debug: (message: string, ...args: any[]) => debug(getTopic(), message, ...args),
-      warn: (message: string, ...args: any[]) => warn(getTopic(), message, ...args),
-      trace: (message: string, ...args: any[]) => trace(getTopic(), message, ...args),
-      todo: (message: string, fields?: SRecord) => todo(getTopic(), message, fields),
+      fatal: (message: string, ...args: any[]) => error(getLabel(), message, ...args),
+      error: (message: string | Error, ...args: any[]) => error(getLabel(), message, ...args),
+      critical: (message: string, ...args: any[]) => critical(getLabel(), message, ...args),
+      problem: (message: string, ...args: any[]) => critical(getLabel(), message, ...args),
+      working: (message: string, ...args: any[]) => working(getLabel(), message, ...args),
+      good: (message: string, ...args: any[]) => good(getLabel(), message, ...args),
+      boring: (message: string, ...args: any[]) => boring(getLabel(), message, ...args),
+      info: (message: string, ...args: any[]) => info(getLabel(), message, ...args),
+      default: (message: string, ...args: any[]) => log(getLabel(), message, ...args),
+      verbose: (message: string, ...args: any[]) => verbose(getLabel(), message, ...args),
+      debug: (message: string, ...args: any[]) => debug(getLabel(), message, ...args),
+      warn: (message: string, ...args: any[]) => warn(getLabel(), message, ...args),
+      trace: (message: string, ...args: any[]) => trace(getLabel(), message, ...args),
+      todo: (message: string, fields?: SRecord) => todo(getLabel(), message, fields),
       object: (value: any) => console.dir(value, { depth: null }),
-      group: ConsoleLogger.Group((message: string, ...args: any[]) => group(getTopic(), message, ...args), {
-        warn: (message: string, ...args: any[]) => group.warn(getTopic(), message, ...args),
+      group: ConsoleLogger.Group((message: string, ...args: any[]) => group(getLabel(), message, ...args), {
+        warn: (message: string, ...args: any[]) => group.warn(getLabel(), message, ...args),
         endOnDispose: (message: string, ...args: any[]) => {
-          group(getTopic(), message, ...args);
+          group(getLabel(), message, ...args);
           return GROUP_END;
         },
       }),

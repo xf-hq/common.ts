@@ -1,4 +1,5 @@
 import * as Immutable from 'immutable';
+import type { cmsg } from '../browser/console/console-message';
 import { DisposableGroup, dispose } from '../general/disposables';
 import { throwError } from '../general/errors';
 import { isDefined, isFunction, isNonClassFunction, isNotNull, isNull, isObject, isUndefined } from '../general/type-checking';
@@ -1225,7 +1226,7 @@ export import ContextQuery = Context.Query;
  * optimisation possibilities I haven't explored that could be used to mitigate any such issues, so again - context
  * switching performance should largely be treated as cheap enough to be a non-issue in normal use cases.
  */
-async function AdHocPerformanceGauging (cmsg: any, DOMContext: any, ClientContext: any, rootContext: any, delay: any) {
+async function AdHocPerformanceGauging (cmsg: cmsg, DOMContext: any, ClientContext: any, rootContext: any, delay: any) {
   performance.mark('1.switch(DOMContext):start');
   let testContext = rootContext.switch(DOMContext).switch(ClientContext).switch(DOMContext);
   performance.mark('1.switch(DOMContext):end');
@@ -1249,11 +1250,11 @@ async function AdHocPerformanceGauging (cmsg: any, DOMContext: any, ClientContex
   performance.mark('4.switch(DOMContext):end');
 
   const measure = performance.measure('1.switch(DOMContext)', '1.switch(DOMContext):start', '1.switch(DOMContext):end');
-  cmsg.print(cmsg.std.labelled.bg('amber').black(`PERF TEST`, [cmsg.std.numeric.index.asPrefix(1), cmsg.std.punctuated([cmsg.std.functionName('switch'), '(', cmsg.std.typeName('DOMContext'), ')'])]).addTailArgs(measure.duration));
+  cmsg.print(cmsg.std.labelled.bg('amber').black(`PERF TEST`, [cmsg.std.numeric.index.asPrefix(1), cmsg.std.punctuated([cmsg.std.functionName('switch'), '(', cmsg.std.typeName('DOMContext'), ')'])]).args(measure.duration));
   const measure_2_switch = performance.measure('2.switch(DOMContext)', '2.switch(DOMContext):start', '2.switch(DOMContext):end');
-  cmsg.print(cmsg.std.labelled.bg('amber').black(`PERF TEST`, [cmsg.std.numeric.index.asPrefix(2), cmsg.std.punctuated([cmsg.std.functionName('switch'), '(', cmsg.std.typeName('DOMContext'), ')'])]).addTailArgs(measure_2_switch.duration));
+  cmsg.print(cmsg.std.labelled.bg('amber').black(`PERF TEST`, [cmsg.std.numeric.index.asPrefix(2), cmsg.std.punctuated([cmsg.std.functionName('switch'), '(', cmsg.std.typeName('DOMContext'), ')'])]).args(measure_2_switch.duration));
   const measure_3_switch = performance.measure('3.switch(DOMContext)', '3.switch(DOMContext):start', '3.switch(DOMContext):end');
-  cmsg.print(cmsg.std.labelled.bg('amber').black(`PERF TEST`, [cmsg.std.numeric.index.asPrefix(3), cmsg.std.punctuated([cmsg.std.functionName('switch'), '(', cmsg.std.typeName('DOMContext'), ')'])]).addTailArgs(measure_3_switch.duration));
+  cmsg.print(cmsg.std.labelled.bg('amber').black(`PERF TEST`, [cmsg.std.numeric.index.asPrefix(3), cmsg.std.punctuated([cmsg.std.functionName('switch'), '(', cmsg.std.typeName('DOMContext'), ')'])]).args(measure_3_switch.duration));
   const measure_4_switch = performance.measure('4.switch(DOMContext)', '4.switch(DOMContext):start', '4.switch(DOMContext):end');
-  cmsg.print(cmsg.std.labelled.bg('amber').black(`PERF TEST`, [cmsg.std.numeric.index.asPrefix(4), cmsg.std.punctuated([cmsg.std.functionName('switch'), '(', cmsg.std.typeName('DOMContext'), ')'])]).addTailArgs(measure_4_switch.duration));
+  cmsg.print(cmsg.std.labelled.bg('amber').black(`PERF TEST`, [cmsg.std.numeric.index.asPrefix(4), cmsg.std.punctuated([cmsg.std.functionName('switch'), '(', cmsg.std.typeName('DOMContext'), ')'])]).args(measure_4_switch.duration));
 }

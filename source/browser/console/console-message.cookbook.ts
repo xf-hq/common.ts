@@ -15,6 +15,6 @@ const Examples = {
       cmsg.std.punctuated([
         cmsg.std.functionName('run'), '(', cmsg.std.typeName('Example'), ')',
       ]),
-    ]).addTailArgs(measure.duration);
+    ]).args(measure.duration);
   },
 };

@@ -13,7 +13,7 @@ const coloredTextFactory = (colorSpec: StaticColor.Spec) => {
 function materialColorConsoleMessage<M extends Material> (materialColor: M, shade: keyof M, content: ConsoleMessage.Content, styles?: ConsoleMessage.Styles, tailArgs?: any[]): ConsoleMessage;
 function materialColorConsoleMessage (materialColor: Material, shade: keyof Material, content: ConsoleMessage.Content, styles?: ConsoleMessage.Styles, tailArgs?: any[]): ConsoleMessage {
   const msg = cmsg(content, { 'color': materialColor[shade], ...styles });
-  if (isDefined(tailArgs)) msg.addTailArgs(...tailArgs);
+  if (isDefined(tailArgs)) msg.args(...tailArgs);
   return msg;
 }
 interface MaterialColorShadeFunction {

@@ -60,7 +60,7 @@ export interface ConsoleMessage {
    * respectively. */
   surround (prefix: ConsoleMessage.ContentUnit, suffix: ConsoleMessage.ContentUnit): this;
   /** Adds general reference arguments to be logged after the main message. */
-  addTailArgs (...tail: any[]): this;
+  args (...tail: any[]): this;
   /** Associates specified messages as group-indented child messages of this message, and forces this message into
    * "group" mode. When this message is printed, the child messages will be printed immediately as group children of
    * this message before any other manually-printed messages appear in the same group. */
@@ -90,8 +90,7 @@ interface CollectorState {
   isSpacedLeft: boolean;
 }
 
-export const isConsoleMessage = (value: any): value is ConsoleMessage => value instanceof ConsoleMessage;
-export const ConsoleMessage = Object.assign(FnCC(class ConsoleMessage implements _ConsoleMessage {
+const __ConsoleMessageClass = class ConsoleMessage implements _ConsoleMessage {
   static create: {
     (content?: Primitive | _ConsoleMessage | ConsoleMessage.ContentArray, style?: ConsoleMessage.StylesOrColor | keyof Material.Namespace | `#${string}`): _ConsoleMessage;
     (style?: ConsoleMessage.Styles): _ConsoleMessage;
@@ -165,7 +164,7 @@ export const ConsoleMessage = Object.assign(FnCC(class ConsoleMessage implements
     this.#content.push(right);
     return this;
   }
-  addTailArgs (...tail: any[]): this {
+  args (...tail: any[]): this {
     this.#tail.push(...tail);
     return this;
   }
@@ -324,7 +323,15 @@ export const ConsoleMessage = Object.assign(FnCC(class ConsoleMessage implements
       --ConsoleMessage.#groupDepth;
     }
   }
-}), {
+  static groupEnd (): void {
+    console.groupEnd();
+    --ConsoleMessage.#groupDepth;
+  }
+};
+
+export const isConsoleMessage = (value: any): value is ConsoleMessage => value instanceof ConsoleMessage;
+export const ConsoleMessage = Object.assign(FnCC(__ConsoleMessageClass), {
+  groupEnd: __ConsoleMessageClass.groupEnd,
   /**
    * Shorthand for creating a new `ConsoleMessage` instance and immediately printing it to the console. This is equivalent
    * to calling `ConsoleMessage(...args).print()`, though has an added benefit of allowing nested child messages to be
@@ -435,7 +442,7 @@ export const ConsoleMessage = Object.assign(FnCC(class ConsoleMessage implements
    * cmsg.print([cmsg.ns('myapp:labels:unhandled-error'), 'The error details were:'], [anErrorThatWasThrown]);
    * // or:
    * const message = cmsg([cmsg.ns('myapp:labels:unhandled-error'), 'The error details were:'], { color: 'red' });
-   * message.addTailArgs(anErrorThatWasThrown);
+   * message.args(anErrorThatWasThrown);
    * message.print();
    * ```
    */
@@ -622,7 +629,7 @@ function quickPrintArgsToConsoleMessage (
   else {
     message = ConsoleMessage(content);
   }
-  if (isDefined(tailArgs)) message.addTailArgs(...tailArgs);
+  if (isDefined(tailArgs)) message.args(...tailArgs);
   if (isDefined(childMessages)) {
     for (let i = 0; i < childMessages.length; ++i) {
       const child = childMessages[i];

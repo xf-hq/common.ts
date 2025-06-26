@@ -75,7 +75,7 @@ export function TODO (message?: string | ConsoleMessage | (ConsoleMessage | stri
       }
     }
     if (isUndefined(optionalBulletPoints)) {
-      msg.addTailArgs(...args);
+      msg.args(...args);
     }
     else {
       if (COLLAPSE_RECURRING_TODO_LISTS) {
