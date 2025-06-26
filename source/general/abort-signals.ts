@@ -8,6 +8,17 @@ export function createChildAbortController (upstream: AbortSignal): AbortControl
   }
   return controller;
 }
+
+export function combineAbortSignals (...signals: AbortSignal[]): AbortSignal {
+  if (signals.length === 1) return signals[0];
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) return signal;
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+  return controller.signal;
+}
+
 /**
  * Triggers an abort signal when the last attached signal is detached. When an abort event is received for an attached
  * signal, the internal response is to detach it the same way that it would be detached manually. Regardless of whether

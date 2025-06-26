@@ -7,7 +7,9 @@ export namespace Messaging {
     readonly type: T;
     readonly data: D;
   }
-  export function Message<T extends string, D> (type: T, data: D): Message<T, D> { return { type, data }; }
+  export function Message<T extends string> (type: T): Message<T, null>;
+  export function Message<T extends string, D> (type: T, data: D): Message<T, D>;
+  export function Message (type: string, data: unknown = null) { return { type, data }; }
   export namespace Message {
     export interface Request<TRef = unknown> extends Message<typeof Request.Type, Request.Data<TRef>> {}
     export function Request<TRef> (ref: TRef, message: Message): Request<TRef> {
@@ -156,8 +158,7 @@ export namespace Messaging {
       handleMessage: (context) => {
         const request = context.messageData as Messaging.Message.Request.Data;
         const requestType = PathLens.from(':', request.message.type);
-        const requestData = PathLens.from(':', request.message.data);
-        const requestContext = config.createRequestContext(context, requestType, requestData, request.ref);
+        const requestContext = config.createRequestContext(context, requestType, request.message.data, request.ref);
         return router.handleMessage(requestContext);
       },
     };
