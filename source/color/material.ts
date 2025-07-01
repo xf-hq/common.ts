@@ -35,8 +35,40 @@ export function getMaterialColorValue<K extends keyof Material.Namespace> (name:
   return shade ? group[shade] : group[500];
 }
 export const getMaterialColorGroup = <K extends keyof Material.Namespace> (name: K): Material.Namespace[K] => Material[name];
+const allColorNames: Material.AllColorNames = ['red', 'pink', 'purple', 'deepPurple', 'indigo', 'blue', 'lightBlue', 'cyan', 'teal', 'green', 'lightGreen', 'lime', 'yellow', 'amber', 'orange', 'deepOrange', 'brown', 'gray', 'blueGray'];
+export function getMaterialColorNameByIndex<I extends Material.AllColorNames.Index> (index: I): Material.AllColorNames[I] {
+  return allColorNames[index];
+}
+export function getNextMaterialColorNameIndex (index: Material.AllColorNames.Index): Material.AllColorNames.Index;
+export function getNextMaterialColorNameIndex (index: Material.AllColorNames.Index) {
+  return (index + 1) % allColorNames.length as Material.AllColorNames.Index;
+}
 export namespace Material {
   export type Namespace = typeof Material;
+  export type AllColorNames = readonly [
+    'red',
+    'pink',
+    'purple',
+    'deepPurple',
+    'indigo',
+    'blue',
+    'lightBlue',
+    'cyan',
+    'teal',
+    'green',
+    'lightGreen',
+    'lime',
+    'yellow',
+    'amber',
+    'orange',
+    'deepOrange',
+    'brown',
+    'gray',
+    'blueGray',
+  ];
+  export namespace AllColorNames {
+    export type Index = Exclude<keyof AllColorNames, keyof Array<any>> extends `${infer N extends number}` ? N : never;
+  }
 
   export type Red = typeof red;
   export const red = {

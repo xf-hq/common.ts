@@ -1,10 +1,14 @@
 import { isFunction, isPromiseLike } from '../../general/type-checking';
 import { AsyncFromPromise } from './async-from-promise';
-import type { AsyncTag } from './common';
+import { AsyncTag } from './common';
 import { ManualAsync } from './manual-async';
 import { OnDemandAsync } from './on-demand-async';
 import { ResolvedAsync } from './resolved-async';
 import { StatefulAsync } from './stateful-async';
+
+export function isAsync<T> (value: any): value is Async<T> {
+  return value?.[AsyncTag] === true;
+}
 
 export type AsyncIfPromiseLike<T, R extends T | PromiseLike<T>> = R extends PromiseLike<T> ? Async<T> : T;
 export function AsyncIfPromiseLike<T, R extends T | PromiseLike<T>> (value: T | PromiseLike<T>): AsyncIfPromiseLike<T, R>;

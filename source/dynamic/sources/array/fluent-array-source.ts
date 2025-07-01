@@ -4,12 +4,13 @@ import { isFunction } from '../../../general/type-checking';
 import type { Subscribable } from '../../core';
 import { ArraySource } from './array-source';
 import { ArraySourceTag } from './common';
+import { ConcatArraySource } from './concat-array-source';
 import { FilteredArraySource } from './filtered-array-source';
 import { MappedArraySource } from './mapped-array-source';
 import { SortedArraySource } from './sorted-array-source';
 import { StatefulMappedArraySource } from './stateful-mapped-array-source';
 
-export class FluentArraySource<T> implements ArraySource<T> {
+export class FluentArraySource<T> implements ArraySource.Fluent<T> {
   constructor (private readonly _source: ArraySource<T>) {}
 
   get [ArraySourceTag] (): true { return true; }
@@ -50,6 +51,11 @@ export class FluentArraySource<T> implements ArraySource<T> {
 
   sort (compareFn: (a: T, b: T) => number): FluentArraySource<T> {
     const source = new SortedArraySource(compareFn, this._source);
+    return new FluentArraySource<T>(source);
+  }
+
+  concat (other: ArraySource<T>): FluentArraySource<T> {
+    const source = new ConcatArraySource(this._source, other);
     return new FluentArraySource<T>(source);
   }
 

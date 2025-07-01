@@ -1,4 +1,4 @@
-import { disposableFunction } from '../../general/disposables';
+import { disposableFunction, disposeOnAbort } from '../../general/disposables';
 import { bindMethod } from '../../general/functional';
 import { isDefined, isFunction } from '../../general/type-checking';
 import { firstElement } from '../../primitive';
@@ -12,6 +12,17 @@ export namespace Subscribable {
     readonly demandExists: boolean;
     readonly subscriberCount: number;
     readonly isEnded: boolean;
+  }
+
+  export function subscribe<TEventArgs extends unknown[], TRefArgs extends any[] = []> (
+    abortSignal: AbortSignal,
+    subscribable: Subscribable<TEventArgs>,
+    subscriber: Subscriber<TEventArgs, TRefArgs>,
+    ...refArgs: TRefArgs
+  ): void {
+    if (abortSignal.aborted) return;
+    const disposable = subscribable.subscribe(subscriber, ...refArgs);
+    disposeOnAbort(abortSignal, disposable);
   }
 
   export class Controller<TEventArgs extends unknown[] = unknown[]> implements Subscribable<TEventArgs>, DemandStatus {

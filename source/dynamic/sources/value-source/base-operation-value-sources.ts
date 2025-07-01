@@ -38,9 +38,9 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
   subscribe<A extends any[]> (receiver: ValueSource.Receiver<B, A> | ValueSource.Receiver<B, A>['event'], ...args: A): ValueSource.Subscription<B> {
     receiver = normalizeValueSourceReceiverArg(receiver);
     const subscription = new InternalSource.Subscription(this, receiver, args);
-    receiver.init?.(subscription, ...args);
     const disposable = this.#emitter.subscribe(receiver, ...args);
     subscription.__setDisposable(disposable);
+    receiver.init?.(subscription, ...args);
     return subscription;
   }
 
@@ -51,15 +51,17 @@ export class UnaryOperationSource<A, B> implements ValueSource.Immediate<B> {
     }
   }
   online () {
-    const input = this.#inputsub = this.#source.subscribe(new UnaryOperationSource.UpstreamReceiver(this));
+    const input = this.#source.subscribe(new UnaryOperationSource.UpstreamReceiver(this));
     this.#current = {
       value: this.#driver.compute(input.value),
       finalization: input.finalization,
       isFinalized: input.isFinalized,
     };
+    this.#inputsub = input;
   }
   offline () {
     dispose(this.#inputsub!);
+    this.#inputsub = undefined;
     this.#current = null;
   }
 
@@ -131,9 +133,9 @@ export class BinaryOperationSource<A, B = A, C = A> implements ValueSource.Immed
   subscribe<A extends any[]> (receiver: ValueSource.Receiver<C, A> | ValueSource.Receiver<C, A>['event'], ...args: A): ValueSource.Subscription<C> {
     receiver = normalizeValueSourceReceiverArg(receiver);
     const subscription = new InternalSource.Subscription(this, receiver, args);
-    receiver.init?.(subscription, ...args);
     const disposable = this.#emitter.subscribe(receiver, ...args);
     subscription.__setDisposable(disposable);
+    receiver.init?.(subscription, ...args);
     return subscription;
   }
 

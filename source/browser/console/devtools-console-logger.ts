@@ -1,3 +1,4 @@
+import { getMaterialColorNameByIndex, getNextMaterialColorNameIndex, Material } from '../../color/material';
 import { ConsoleLogger } from '../../facilities/logging';
 import { isString, isUndefined } from '../../general/type-checking';
 import { cmsg, ConsoleMessage } from './console-message';
@@ -7,10 +8,18 @@ export const DevtoolsLogger: ConsoleLogger.Factory = (label?: string | { readonl
 };
 
 class DevtoolsConsoleLabelledLogger implements ConsoleLogger {
+  private static _nextColorIndex: Material.AllColorNames.Index = 0;
+  private static getNextColorName (): Material.AllColorNames[Material.AllColorNames.Index] {
+    const colorName = getMaterialColorNameByIndex(DevtoolsConsoleLabelledLogger._nextColorIndex);
+    DevtoolsConsoleLabelledLogger._nextColorIndex = getNextMaterialColorNameIndex(DevtoolsConsoleLabelledLogger._nextColorIndex);
+    return colorName;
+  }
   constructor (label: string | { readonly name: string } | undefined) {
-    this.#label = isUndefined(label) ? '' : cmsg.std.label.teal(isString(label) ? label : label.name);
+    this.#color = DevtoolsConsoleLabelledLogger.getNextColorName();
+    this.#label = isUndefined(label) ? '' : cmsg.std.label[this.#color](isString(label) ? label : label.name);
   }
   readonly #label: ConsoleMessage | string;
+  readonly #color: Material.AllColorNames[Material.AllColorNames.Index];
 
   fatal (message: string, ...args: any[]): void {
     cmsg([this.#label, cmsg.std.mc.red(message)]).args(...args).print();
@@ -83,6 +92,6 @@ class DevtoolsConsoleLabelledLogger implements ConsoleLogger {
     ConsoleMessage.groupEnd();
   }
   divider (): void {
-    cmsg.std.mc.teal([this.#label, '―――――― ―――――― ―――――― ―――――― ―――――― ―――――― ―――――― ――――――']).print();
+    cmsg.std.mc[this.#color]([this.#label, '―――――― ―――――― ―――――― ―――――― ―――――― ―――――― ―――――― ――――――']).print();
   }
 }

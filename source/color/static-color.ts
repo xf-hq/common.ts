@@ -46,6 +46,9 @@ export class StaticColor {
     color._hsla = hsla;
     return color as StaticColor;
   }
+  /**
+   * @param lightness A number between 0 and 1.
+   */
   static fromLightness (lightness: number): StaticColor {
     return this.fromHSLA({ h: 0, s: 0, l: lightness, a: 1 });
   }
@@ -109,6 +112,8 @@ export class StaticColor {
   /** A value in the range 0 to 1. 0 is fully transparent, 1 is fully opaque. */
   get alpha () { return isDefined(this.rgba) ? this.rgba.a : this.hsla.a; }
 
+  get css_hsl () { return `hsl(${this.hsla.h * 360}deg, ${this.hsla.s * 100}%, ${this.hsla.l * 100}%)`; }
+
   toString () { return this.hex; }
   valueOf () { return this.hex; }
   [Symbol.toPrimitive] () { return this.hex; }
@@ -126,6 +131,13 @@ export class StaticColor {
       l: clamp(0, 1, lightness),
       a: clamp(0, 1, alpha),
     });
+  }
+  /**
+   * @param saturation A number between 0 and 1.
+   * @param lightness A number between 0 and 1.
+   */
+  setSL (saturation: number, lightness: number) {
+    return this.setHSL(this.hue, saturation, lightness, this.alpha);
   }
 
   /**
@@ -364,6 +376,34 @@ export class StaticColor {
     const targetLightness = isStaticColor(target) ? target.lightness : isNumber(target) ? target : hexToHSLA(target).l;
     const newLightness = this.lightness + (targetLightness - this.lightness) * amount;
     return this.setLightness(newLightness);
+  }
+
+  /**
+   * Interpolates the saturation and lightness of the color towards the target color.
+   * @param target A color or HSLA value to interpolate towards.
+   * @param amount A number between 0 and 1 to determine how far to move the current color towards the target color.
+   */
+  interpolateSL (target: this | string | number, amount: number): this {
+    let targetHSLA: HSLA;
+    if (isStaticColor(target)) {
+      targetHSLA = { h: this.hue, s: target.saturation, l: target.lightness, a: this.alpha };
+    }
+    else if (isString(target)) {
+      targetHSLA = hexToHSLA(target);
+      targetHSLA.h = this.hue;
+      targetHSLA.a = this.alpha;
+    }
+    else {
+      targetHSLA = { h: this.hue, s: target, l: target, a: this.alpha };
+    }
+    const newSaturation = clamp(0, 1, this.saturation + (targetHSLA.s - this.saturation) * amount);
+    const newLightness = this.lightness + (targetHSLA.l - this.lightness) * amount;
+    return this.fromHSLA({
+      h: this.hue,
+      s: newSaturation,
+      l: newLightness,
+      a: this.alpha,
+    });
   }
 
   /**

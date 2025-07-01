@@ -2,13 +2,17 @@ import { dispose, disposeOnAbort } from '../../../general/disposables';
 import { isIterable } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { ArraySource } from '../array/array-source';
-import { type MapSourceTag } from './common';
+import { MapSourceTag } from './common';
 import { DraftMapSourceEvent } from './draft-map-source-event';
 import { FilteredMapSource } from './filtered-map-source';
 import { ManualMapSource } from './manual-map-source';
 import { MapSourceFromEntries } from './map-source-from-entries';
 import { MappedMapSource } from './mapped-map-source';
 import { StatefulMappedMapSource } from './stateful-mapped-map-source';
+
+export function isMapSource (value: unknown): value is MapSource<any, any> {
+  return value?.[MapSourceTag] === true;
+}
 
 /**
  * To consume a `MapSource`:
@@ -40,35 +44,7 @@ export namespace MapSource {
     export function draft<K, V> () { return new DraftMapSourceEvent<K, V>(); }
     export type Draft<K, V> = DraftMapSourceEvent<K, V>;
   }
-  export interface EventReceiver<K, V> {
-    add? (entries: ReadonlyMap<K, V>): void;
-    change? (entries: ReadonlyMap<K, V>): void;
-    delete? (keys: ReadonlyArray<K>): void;
-    end? (): void;
-    unsubscribed? (): void;
-  }
 
-  export class EventReceiverAdapter<K, V> implements Receiver<K, V> {
-    constructor (private readonly receiver: EventReceiver<K, V>) {}
-
-    event (event: Event<K, V>): void {
-      if (event.add) {
-        this.receiver.add?.(event.add);
-      }
-      if (event.change) {
-        this.receiver.change?.(event.change);
-      }
-      if (event.delete) {
-        this.receiver.delete?.(event.delete);
-      }
-    }
-    end (): void {
-      this.receiver.end?.();
-    }
-    unsubscribed (): void {
-      this.receiver.unsubscribed?.();
-    }
-  }
   export function subscribe<K, V> (abortSignal: AbortSignal, source: MapSource<K, V>, receiver: Receiver<K, V>): Subscription<K, V> {
     const sub = source.subscribe(receiver);
     disposeOnAbort(abortSignal, sub);

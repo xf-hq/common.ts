@@ -5,6 +5,7 @@ import { isArray, isFunction } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { MapSource } from '../map-source/map-source';
 import { ArraySourceTag } from './common';
+import { ConcatArraySource } from './concat-array-source';
 import { FilteredArraySource } from './filtered-array-source';
 import { FluentArraySource } from './fluent-array-source';
 import { ManualArraySource } from './manual-array-source';
@@ -72,10 +73,75 @@ export namespace ArraySource {
     }
   }
 
-  export function subscribe<V, A extends any[]> (abort: AbortSignal, source: ArraySource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V> {
+  export function subscribe<V> (abort: AbortSignal, source: ArraySource<V>, receiver: EventReceiver<V>): Subscription<V>;
+  export function subscribe<V, A extends any[]> (abort: AbortSignal, source: ArraySource<V>, receiver: Subscriber<V, A>, ...args: A): Subscription<V>;
+  export function subscribe<V> (abort: AbortSignal, source: ArraySource<V>, receiver: Subscriber<V, any> | EventReceiver<V>, ...args: any[]): Subscription<V> {
+    if ('push' in receiver) receiver = new EventReceiverAdapter(receiver) as Receiver<V>;
     const sub = source.subscribe(receiver, ...args);
     disposeOnAbort(abort, sub);
     return sub;
+  }
+
+  export interface EventReceiver<T> {
+    init? (subscription: ArraySource.Subscription<T>): void;
+    push (values: T[]): void;
+    pop (): void;
+    unshift (values: T[]): void;
+    shift (): void;
+    splice (index: number, deletions: number, insertions: T[]): void;
+    set (index: number, value: T): void;
+    batch (events: Event<T>[], receiver: Receiver<T>): void;
+    end? (): void;
+    unsubscribed? (): void;
+  }
+
+  export class EventReceiverAdapter<T> implements Receiver<T> {
+    constructor (private readonly receiver: EventReceiver<T>) {}
+
+    init (subscription: Subscription<T>): void {
+      this.receiver.init?.(subscription);
+    }
+
+    event (event: Event<T>): void {
+      switch (event.kind) {
+        case 'push': {
+          this.receiver.push(event.values);
+          break;
+        }
+        case 'pop': {
+          this.receiver.pop();
+          break;
+        }
+        case 'unshift': {
+          this.receiver.unshift(event.values);
+          break;
+        }
+        case 'shift': {
+          this.receiver.shift();
+          break;
+        }
+        case 'splice': {
+          this.receiver.splice(event.index, event.deletions, event.insertions);
+          break;
+        }
+        case 'set': {
+          this.receiver.set(event.index, event.value);
+          break;
+        }
+        case 'batch': {
+          this.receiver.batch(event.events, this);
+          break;
+        }
+      }
+    }
+
+    end (): void {
+      this.receiver.end?.();
+    }
+
+    unsubscribed (): void {
+      this.receiver.unsubscribed?.();
+    }
   }
 
   export interface Immediate<T> extends ArraySource<T> {
@@ -135,7 +201,15 @@ export namespace ArraySource {
     return new ManualArraySource(array, onDemandChanged);
   }
 
-  export type Fluent<T> = FluentArraySource<T>;
+  export interface Fluent<T> extends ArraySource<T> {
+    map<U> (f: (a: T) => U): FluentArraySource<U>;
+    map<U, TItemState, TCommonState = void> (mapper: ArraySource.StatefulMapper<T, U, TItemState, TCommonState>): FluentArraySource<U>;
+    mapToDisposable<U extends Disposable> (f: (a: T) => U): FluentArraySource<U>;
+    filter (f: (value: T) => boolean): FluentArraySource<T>;
+    sort (compareFn: (a: T, b: T) => number): FluentArraySource<T>;
+    concat (other: ArraySource<T>): FluentArraySource<T>;
+    tap<A> (source: ArraySource<A>): Disposable;
+  }
 
   export function createFluent<T> (onDemandChanged: Manual.DemandObserver<T>): Fluent<T> {
     const source = create(onDemandChanged);
@@ -143,7 +217,7 @@ export namespace ArraySource {
   }
 
   export function fluent<T> (source: ArraySource<T>): Fluent<T> {
-    return new FluentArraySource(source);
+    return source instanceof FluentArraySource ? source : new FluentArraySource(source);
   }
 
   export interface StatefulMapper<A, B, TItemState, TCommonState = void> {
@@ -201,6 +275,10 @@ export namespace ArraySource {
 
   export function sort<T> (compareFn: (a: T, b: T) => number, source: ArraySource<T>): ArraySource<T> {
     return new SortedArraySource(compareFn, source);
+  }
+
+  export function concat<T> (sourceA: ArraySource<T>, sourceB: ArraySource<T>): ArraySource<T> {
+    return new ConcatArraySource(sourceA, sourceB);
   }
 
   export function tap<A> (source: ArraySource<A>): Disposable {

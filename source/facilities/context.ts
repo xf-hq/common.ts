@@ -462,6 +462,7 @@ export namespace Context {
       get view (): View { return this._binding.view; }
       get abort (): Abort { return this[_abort_] ??= this.query(Abort.QueryType); }
       get disposables (): DisposableGroup { return this.abort.disposables; }
+      get isAborted (): boolean { return this.abort.signal.aborted; }
 
       abortable<TContext extends ImmediateContext> (this: TContext, controller: AbortController): TContext {
         this._assertNotLocked();

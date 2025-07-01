@@ -1,12 +1,48 @@
 export interface Latch {
   readonly waiting: boolean;
 }
+export namespace Latch {
+  /**
+   * Combines two `Monitor` instances such that the provided `LatchHandle` is released only when both latches
+   * have been released.
+   * @returns A `LatchHandle` used to detach the downstream handle from the left and right latches.
+   */
+  export function and (left: Monitor_, right: Monitor_, handle: LatchHandle_, detach?: Monitor_): void {
+    handle = LatchHandle(handle);
+    const state: [boolean, boolean] = [false, false];
+    Monitor.attach(left, new And(handle, state, 0), detach);
+    Monitor.attach(right, new And(handle, state, 1), detach);
+  }
+  class And implements LatchHandle {
+    constructor (
+      private readonly handle: LatchHandle,
+      private readonly state: [boolean, boolean],
+      private readonly index: 0 | 1
+    ) {}
+    release (): void {
+      if (this.state[this.index]) return;
+      this.state[this.index] = true;
+      if (this.state[0] && this.state[1]) this.handle.release();
+    }
+  }
+}
 
 export interface LatchHandle {
   release (): void;
 }
 export type LatchHandle_ = LatchHandle | LatchHandle['release'];
-export function LatchHandle (release: LatchHandle_): LatchHandle { return typeof release === 'function' ? { release } : release; }
+export function LatchHandle (release: LatchHandle_ | AbortController): LatchHandle {
+  if (release instanceof AbortController) {
+    if (release.signal.aborted) return LatchHandle.NoEffect;
+    return { release: () => release.abort() };
+  }
+  return typeof release === 'function' ? { release } : release;
+}
+export namespace LatchHandle {
+  export const NoEffect: LatchHandle = {
+    release: () => {},
+  };
+}
 
 export interface Resettable {
   reset (): void;
@@ -19,9 +55,11 @@ export interface Monitor {
 export type Monitor_ = Monitor | Monitor['attach'];
 export function Monitor (attach: Monitor_): Monitor { return typeof attach === 'function' ? { attach } : attach; }
 export namespace Monitor {
-  export function attach (monitor: Monitor_, handle: LatchHandle_, detach?: Monitor_): void {
+  export function attach (monitor: Monitor_, handle: LatchHandle_ | AbortController, detach?: Monitor_ | AbortSignal): void {
     if (typeof handle === 'function') handle = LatchHandle(handle);
+    else if (handle instanceof AbortController) handle = LatchHandle(handle);
     if (typeof detach === 'function') detach = Monitor(monitor);
+    else if (detach instanceof AbortSignal) detach = ObservableLatch.fromAbortSignal(detach);
     if (typeof monitor === 'function') monitor(handle, detach);
     else monitor.attach(handle, detach);
   }
@@ -36,6 +74,14 @@ export interface Sink<T extends readonly any[], R> {
   write (...value: T): R;
 }
 export type Sink_<T extends readonly any[], R> = Sink<T, R> | Sink<T, R>['write'];
+export function Sink<T extends readonly any[], R> (write: (...value: T) => R): Sink<T, R> {
+  return { write };
+}
+export namespace Sink {
+  export function write<T extends readonly any[], R> (sink: Sink_<T, R>, ...value: T): R {
+    return typeof sink === 'function' ? sink(...value) : sink.write(...value);
+  }
+}
 
 export interface Hold<T extends readonly any[]> {
   read<R> (sink: Sink<T, R>): R;
@@ -44,20 +90,8 @@ export type Hold_<T extends readonly any[]> = Hold<T> | Hold<T>['read'];
 
 export interface ResettableLatchHandle extends LatchHandle, Resettable {}
 export interface MasterLatch extends Latch, LatchHandle {}
+
 export interface ResettableMasterLatch extends MasterLatch, Resettable {}
-export interface ObservableLatch extends Latch, Monitor {}
-/**
- * A latch that other latches can attach to, allowing the attached latches to be released when this latch transitions to
- * a released state.
- */
-export interface ObservableMasterLatch extends ObservableLatch, MasterLatch {}
-export interface ResettableObservableLatch extends Latch, ResettableMonitor {}
-export interface ResettableObservableMasterLatch extends ResettableObservableLatch, ResettableMasterLatch {}
-
-export interface Future<T extends readonly any[]> extends ObservableLatch, Hold<T> {}
-export interface VoidableFuture<T extends readonly any[]> extends ResettableObservableLatch, Hold<T> {}
-export interface FutureController<T extends readonly any[]> extends Sink<T, void>, Future<T> {}
-
 /**
  * When the latch transitions to a released state, the target function is called with the provided arguments.
  */
@@ -85,6 +119,32 @@ export const FunctionCallingLatch = class _<A extends any[]> implements Resettab
   }
 };
 
+export interface ObservableLatch extends Latch, Monitor {}
+export namespace ObservableLatch {
+  export const AlreadyReleased: ObservableLatch = {
+    waiting: false,
+    attach: (handle) => handle.release(),
+  };
+  export const fromAbortSignal = (signal: AbortSignal): ObservableLatch => {
+    if (signal.aborted) return AlreadyReleased;
+    return new FromAbortSignal(signal);
+  };
+  class FromAbortSignal implements ObservableLatch {
+    constructor (private readonly signal: AbortSignal) {}
+    get waiting (): boolean { return !this.signal.aborted; }
+    attach (handle: LatchHandle, detach?: Monitor): void {
+      const listener = () => handle.release();
+      if (detach) Monitor.attach(detach, () => this.signal.removeEventListener('abort', listener));
+      this.signal.addEventListener('abort', listener, { once: true });
+    }
+  }
+}
+
+/**
+ * A latch that other latches can attach to, allowing the attached latches to be released when this latch transitions to
+ * a released state.
+ */
+export interface ObservableMasterLatch extends ObservableLatch, MasterLatch {}
 export const ObservableMasterLatch = class implements ObservableMasterLatch {
   private readonly _attachedLatches = new Set<LatchHandle>();
   private _waiting: boolean = true;
@@ -109,7 +169,9 @@ export const ObservableMasterLatch = class implements ObservableMasterLatch {
   }
 };
 
-export const ResettableObservableLatch = class implements ResettableObservableMasterLatch {
+export interface ResettableObservableLatch extends Latch, ResettableMonitor {}
+export interface ResettableObservableMasterLatch extends ResettableObservableLatch, ResettableMasterLatch {}
+export const ResettableObservableMasterLatch = class implements ResettableObservableMasterLatch {
   private readonly _attachedLatches = new Set<ResettableLatchHandle>();
   private _waiting: boolean = true;
 
@@ -139,6 +201,10 @@ export const ResettableObservableLatch = class implements ResettableObservableMa
   }
 };
 
+export interface Future<T extends readonly any[]> extends ObservableLatch, Hold<T> {}
+export interface VoidableFuture<T extends readonly any[]> extends ResettableObservableLatch, Hold<T> {}
+export interface FutureController<T extends readonly any[]> extends Sink<T, void>, Future<T> {}
+
 export const ObservableFuture = class _<T extends readonly any[]> extends ObservableMasterLatch implements FutureController<T> {
   private readonly _latch = new ObservableMasterLatch();
   private _value: T;
@@ -158,41 +224,6 @@ export const ObservableFuture = class _<T extends readonly any[]> extends Observ
     this._latch.release();
   }
 };
-
-export namespace Latch {
-  /**
-   * Combines two `Monitor` instances such that the provided `LatchHandle` is released only when both latches
-   * have been released.
-   * @returns A `LatchHandle` used to detach the downstream handle from the left and right latches.
-   */
-  export function and (left: Monitor_, right: Monitor_, handle: LatchHandle_, detach?: Monitor_): void {
-    handle = LatchHandle(handle);
-    const state: [boolean, boolean] = [false, false];
-    Monitor.attach(left, new And(handle, state, 0), detach);
-    Monitor.attach(right, new And(handle, state, 1), detach);
-  }
-  class And implements LatchHandle {
-    constructor (
-      private readonly handle: LatchHandle,
-      private readonly state: [boolean, boolean],
-      private readonly index: 0 | 1
-    ) {}
-    release (): void {
-      if (this.state[this.index]) return;
-      this.state[this.index] = true;
-      if (this.state[0] && this.state[1]) this.handle.release();
-    }
-  }
-}
-
-export function Sink<T extends readonly any[], R> (write: (...value: T) => R): Sink<T, R> {
-  return { write };
-}
-export namespace Sink {
-  export function write<T extends readonly any[], R> (sink: Sink_<T, R>, ...value: T): R {
-    return typeof sink === 'function' ? sink(...value) : sink.write(...value);
-  }
-}
 
 export function Future<T extends readonly any[]> (onWrite?: LatchHandle | LatchHandle['release']): FutureController<T> {
   const future = new ObservableFuture<T>();
@@ -216,12 +247,8 @@ export namespace Future {
   }
 }
 
-interface QueuedEvent<T> {
-  readonly event: T;
-  next: QueuedEvent<T> | undefined;
-}
 export class QueueableEventLatch<T> {
-  private readonly _latch = new ResettableObservableLatch();
+  private readonly _latch = new ResettableObservableMasterLatch();
   private _current: T | undefined;
   private _next: QueuedEvent<T> | undefined;
   private _last: QueuedEvent<T> | undefined;
@@ -265,4 +292,8 @@ export class QueueableEventLatch<T> {
       };
     }
   }
+}
+interface QueuedEvent<T> {
+  readonly event: T;
+  next: QueuedEvent<T> | undefined;
 }

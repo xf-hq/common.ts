@@ -52,74 +52,86 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
   push (...values: T[]): void {
     if (values.length === 0) return;
     this.#array.push(...values);
-    const event: ArraySource.Event<T> = { kind: 'push', values };
-    if (this.#status.isOnHold) {
-      this.#status.holdEvent(event);
-    }
-    else {
-      this._pushEvent({ kind: 'push', values });
+    if (this.#emitter.demandExists) {
+      const event: ArraySource.Event<T> = { kind: 'push', values };
+      if (this.#status.isOnHold) {
+        this.#status.holdEvent(event);
+      }
+      else {
+        this._pushEvent({ kind: 'push', values });
+      }
     }
   }
   pop (): T | undefined {
     if (this.#array.length === 0) return;
     const value = this.#array.pop()!;
-    const event: ArraySource.Event<T> = { kind: 'pop' };
-    if (this.#status.isOnHold) {
-      this.#status.holdEvent(event);
-    }
-    else {
-      this._pushEvent(event);
+    if (this.#emitter.demandExists) {
+      const event: ArraySource.Event<T> = { kind: 'pop' };
+      if (this.#status.isOnHold) {
+        this.#status.holdEvent(event);
+      }
+      else {
+        this._pushEvent(event);
+      }
     }
     return value;
   }
   unshift (...values: T[]): void {
     if (values.length === 0) return;
     this.#array.unshift(...values);
-    const event: ArraySource.Event<T> = { kind: 'unshift', values };
-    if (this.#status.isOnHold) {
-      this.#status.holdEvent(event);
-    }
-    else {
-      this._pushEvent(event);
+    if (this.#emitter.demandExists) {
+      const event: ArraySource.Event<T> = { kind: 'unshift', values };
+      if (this.#status.isOnHold) {
+        this.#status.holdEvent(event);
+      }
+      else {
+        this._pushEvent(event);
+      }
     }
   }
   shift (): T | undefined {
     if (this.#array.length === 0) return;
     const value = this.#array.shift()!;
-    const event: ArraySource.Event<T> = { kind: 'shift' };
-    if (this.#status.isOnHold) {
-      this.#status.holdEvent(event);
-    }
-    else {
-      this._pushEvent(event);
+    if (this.#emitter.demandExists) {
+      const event: ArraySource.Event<T> = { kind: 'shift' };
+      if (this.#status.isOnHold) {
+        this.#status.holdEvent(event);
+      }
+      else {
+        this._pushEvent(event);
+      }
     }
     return value;
   }
   splice (index: number, deletions: number, ...insertions: T[]): T[] {
     if (deletions === 0 && insertions.length === 0) return [];
     const deleted = this.#array.splice(index, deletions, ...insertions);
-    const event: ArraySource.Event<T> = { kind: 'splice', index, deletions, insertions };
-    if (this.#status.isOnHold) {
-      this.#status.holdEvent(event);
-    }
-    else {
-      this._pushEvent(event);
+    if (this.#emitter.demandExists) {
+      const event: ArraySource.Event<T> = { kind: 'splice', index, deletions, insertions };
+      if (this.#status.isOnHold) {
+        this.#status.holdEvent(event);
+      }
+      else {
+        this._pushEvent(event);
+      }
     }
     return deleted;
   }
   set (index: number, value: T): void {
     this.#array[index] = value;
-    const event: ArraySource.Event<T> = { kind: 'set', index, value };
-    if (this.#status.isOnHold) {
-      this.#status.holdEvent(event);
-    }
-    else {
-      this._pushEvent(event);
+    if (this.#emitter.demandExists) {
+      const event: ArraySource.Event<T> = { kind: 'set', index, value };
+      if (this.#status.isOnHold) {
+        this.#status.holdEvent(event);
+      }
+      else {
+        this._pushEvent(event);
+      }
     }
   }
   batch (callback: (source: ArraySource.Manual<T>) => void): void {
-    if (this.#status.isOnHold) {
-      // Everything's already on hold, so we can just call the callback directly.
+    if (this.#status.isOnHold || !this.#emitter.demandExists) {
+      // Everything's already on hold, or nobody's observing this source, so we can just call the callback directly.
       callback(this);
       return;
     }

@@ -1,5 +1,4 @@
 import { disposeOnAbort } from '../../../general/disposables';
-import { isFunction } from '../../../general/type-checking';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
 import { BinaryOperationSource, UnaryOperationSource } from './base-operation-value-sources';
@@ -8,7 +7,7 @@ import { ConstantValueSource } from './constant-value-source';
 import { ManualCounterSource, ManualValueSource } from './manual-value-source';
 import type { NumberSource } from './number-source';
 
-export function isValueSource (value: any): value is ValueSource<any> {
+export function isValueSource<T> (value: any): value is ValueSource<T> {
   return value?.[ValueSourceTag] === true;
 }
 
@@ -64,7 +63,6 @@ export namespace ValueSource {
 
   export function subscribe<T, A extends any[]> (abort: AbortSignal, source: ValueSource<T>, receiver: Subscriber<T, A>, ...args: A): ValueSource.Subscription<T> {
     const sub = source.subscribe(receiver, ...args);
-    if (isFunction(receiver)) sub.echo();
     disposeOnAbort(abort, sub);
     return sub;
   }
