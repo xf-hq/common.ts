@@ -21,6 +21,8 @@ class DevtoolsConsoleLabelledLogger implements ConsoleLogger {
   readonly #label: ConsoleMessage | string;
   readonly #color: Material.AllColorNames[Material.AllColorNames.Index];
 
+  get unlabelled (): ConsoleLogger { return UNLABELLED_DEVTOOLS_LOGGER; }
+
   fatal (message: string, ...args: any[]): void {
     cmsg([this.#label, cmsg.std.mc.red(message)]).args(...args).print();
   }
@@ -95,3 +97,5 @@ class DevtoolsConsoleLabelledLogger implements ConsoleLogger {
     cmsg.std.mc[this.#color]([this.#label, '―――――― ―――――― ―――――― ―――――― ―――――― ―――――― ―――――― ――――――']).print();
   }
 }
+
+const UNLABELLED_DEVTOOLS_LOGGER: ConsoleLogger = new DevtoolsConsoleLabelledLogger(undefined);

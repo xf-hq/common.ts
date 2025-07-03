@@ -109,11 +109,40 @@ export namespace terminal {
     warn: taggedConsoleLogger({ defaultColor: orange, log: console.group }),
   });
   export const groupEnd = console.groupEnd;
-  export const divider = () => console.log(gray700('------------------------------------------------------------------------------------------------------------------------'));
+  export const divider = () => console.log(gray700('-'.repeat(80)));
+
+  export const unlabelledLogger: ConsoleLogger = {
+    get unlabelled () { return unlabelledLogger; },
+    fatal: (message: string, ...args: any[]) => error(null, message, ...args),
+    error: (message: string | Error, ...args: any[]) => error(null, message, ...args),
+    critical: (message: string, ...args: any[]) => critical(null, message, ...args),
+    problem: (message: string, ...args: any[]) => critical(null, message, ...args),
+    working: (message: string, ...args: any[]) => working(null, message, ...args),
+    good: (message: string, ...args: any[]) => good(null, message, ...args),
+    boring: (message: string, ...args: any[]) => boring(null, message, ...args),
+    info: (message: string, ...args: any[]) => info(null, message, ...args),
+    default: (message: string, ...args: any[]) => log(null, message, ...args),
+    verbose: (message: string, ...args: any[]) => verbose(null, message, ...args),
+    debug: (message: string, ...args: any[]) => debug(null, message, ...args),
+    warn,
+    trace,
+    todo: (message: string, fields?: SRecord) => todo(null, message, fields),
+    object (value) { console.dir(value); },
+    group: ConsoleLogger.Group((message: string, ...args: any[]) => group(null, message, ...args), {
+      warn: (message: string, ...args: any[]) => group.warn(null, message, ...args),
+      endOnDispose: (message: string, ...args: any[]) => {
+        group(null, message, ...args);
+        return GROUP_END;
+      },
+    }),
+    groupEnd,
+    divider,
+  };
 
   export const logger: ConsoleLogger.Factory = (label?: string | { readonly name: string }): ConsoleLogger => {
     const getLabel = label ? isString(label) ? () => label : () => label.name : () => null;
     const logger: ConsoleLogger = {
+      get unlabelled () { return unlabelledLogger; },
       fatal: (message: string, ...args: any[]) => error(getLabel(), message, ...args),
       error: (message: string | Error, ...args: any[]) => error(getLabel(), message, ...args),
       critical: (message: string, ...args: any[]) => critical(getLabel(), message, ...args),
@@ -139,7 +168,8 @@ export namespace terminal {
       groupEnd,
       divider,
     };
-    const GROUP_END: Disposable = neverRegisterAsDisposed({ [Symbol.dispose]: () => logger.groupEnd() });
     return logger;
   };
+
+  const GROUP_END: Disposable = neverRegisterAsDisposed({ [Symbol.dispose]: () => groupEnd() });
 }

@@ -1,6 +1,8 @@
 import { neverRegisterAsDisposed, noopDispose } from '../general/disposables';
 
 export interface ConsoleLogger {
+  readonly unlabelled: ConsoleLogger;
+
   /** For when we want to indicate that a process-ending event has occurred that is not necessarily the result of an error having been thrown. */
   fatal: (message: string, ...args: any[]) => void;
   /** Analogous to `console.error`. Prints a stack trace after the message. */
@@ -60,6 +62,7 @@ export namespace ConsoleLogger {
 }
 
 export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
+  get unlabelled () { return SILENT_CONSOLE_LOGGER; },
   fatal: () => {},
   error: () => {},
   critical: () => {},
@@ -87,6 +90,7 @@ const DEFAULT_GROUP_END: Disposable = neverRegisterAsDisposed({
   [Symbol.dispose] () { console.groupEnd(); },
 });
 export const DEFAULT_CONSOLE_LOGGER = new class DefaultConsoleLogger implements ConsoleLogger {
+  get unlabelled () { return this; }
   fatal = console.error;
   error = console.error;
   critical = console.error;
@@ -126,11 +130,13 @@ export const DEFAULT_CONSOLE_LOGGER = new class DefaultConsoleLogger implements 
   })();
 };
 
-export class TaggedDefaultConsoleLogger implements ConsoleLogger {
-  constructor (private readonly tag: string) {}
+export class LabelledDefaultConsoleLogger implements ConsoleLogger {
+  constructor (private readonly label: string) {}
   private formatMessage (message: string): string {
-    return `${this.tag} | ${message}`;
+    return `${this.label} | ${message}`;
   }
+
+  get unlabelled () { return DEFAULT_CONSOLE_LOGGER; }
 
   fatal (message: string, ...args: any[]) { DEFAULT_CONSOLE_LOGGER.fatal(this.formatMessage(message), ...args); }
   error (message: string | Error, ...args: any[]) {
@@ -138,7 +144,7 @@ export class TaggedDefaultConsoleLogger implements ConsoleLogger {
       DEFAULT_CONSOLE_LOGGER.error(this.formatMessage(message), ...args);
     }
     else {
-      DEFAULT_CONSOLE_LOGGER.error(`${this.tag}:`, message, ...args);
+      DEFAULT_CONSOLE_LOGGER.error(`${this.label}:`, message, ...args);
     }
   }
   critical (message: string, ...args: any[]) { DEFAULT_CONSOLE_LOGGER.critical(this.formatMessage(message), ...args); }
@@ -156,13 +162,13 @@ export class TaggedDefaultConsoleLogger implements ConsoleLogger {
   object = (value: any) => DEFAULT_CONSOLE_LOGGER.object(value);
 
   group = ConsoleLogger.Group((message: string, ...args: any[]) => {
-    DEFAULT_CONSOLE_LOGGER.group(`[${this.tag}] ${message}`, ...args);
+    DEFAULT_CONSOLE_LOGGER.group(`[${this.label}] ${message}`, ...args);
   }, {
     warn: (message: string, ...args: any[]) => {
-      DEFAULT_CONSOLE_LOGGER.group.warn(`[${this.tag}] ⚠️ ${message}`, ...args);
+      DEFAULT_CONSOLE_LOGGER.group.warn(`[${this.label}] ⚠️ ${message}`, ...args);
     },
     endOnDispose: (message: string, ...args: any[]) => {
-      return DEFAULT_CONSOLE_LOGGER.group.endOnDispose(`[${this.tag}] ${message}`, ...args);
+      return DEFAULT_CONSOLE_LOGGER.group.endOnDispose(`[${this.label}] ${message}`, ...args);
     },
   });
   groupEnd = () => DEFAULT_CONSOLE_LOGGER.groupEnd();
