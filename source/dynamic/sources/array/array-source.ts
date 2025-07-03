@@ -14,6 +14,10 @@ import { MappedArraySource } from './mapped-array-source';
 import { SortedArraySource } from './sorted-array-source';
 import { StatefulMappedArraySource } from './stateful-mapped-array-source';
 
+export function isArraySource (source: any): source is ArraySource<any> {
+  return source?.[ArraySourceTag] === true;
+}
+
 /**
  * To consume an `ArraySource`:
  * - First define any state that needs to be maintained based on the array.

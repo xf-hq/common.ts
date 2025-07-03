@@ -1,57 +1,43 @@
 import type { Async } from './async/async';
-import { ArraySource, AssociativeRecordSource, BooleanSource, FixedRecordSource, MapSource, SetSource, type NumberSource, type StringSource, type ValueSource } from './sources';
-
-// export function isLiteralData<T> (data: StringData): data is LiteralData<string>;
-// export function isLiteralData<T> (data: NumberData): data is LiteralData<number>;
-// export function isLiteralData<T> (data: BooleanData): data is LiteralData<boolean>;
-// export function isLiteralData<T> (data: ValueData<T>): data is LiteralData<T>;
-// export function isLiteralData<T> (data: ArrayData<T>): data is LiteralData<T[]>;
-// export function isLiteralData<T> (value: any) {
-//   return value?.[LiteralData.Tag] === true;
-// }
-// export interface LiteralData<T> {
-//   readonly [LiteralData.Tag]: true;
-//   readonly value: T;
-// }
-// export namespace LiteralData {
-//   export const Tag = Symbol('LiteralData<T>');
-// }
+import { ArraySource, AssociativeRecordSource, BooleanSource, FixedRecordSource, isArraySource, isAssociativeRecordSource, isFixedRecordSource, isMapSource, isSetSource, isValueSource, MapSource, SetSource, ValueSource, type NumberSource, type StringSource } from './sources';
 
 export type ValueData<T> =
   | ValueData.Immediate<T>
   | Async<ValueData.Immediate<T>>;
 export namespace ValueData {
   export type Immediate<T> =
-    // | LiteralData<T>
-    | ValueSource<T>
-    | Exclude<T, ValueSource>;
+    | ValueSource.Immediate<T>
+    | Exclude<T, ValueSource.Immediate<T>>;
+  export function snapshot<T> (source: Immediate<T>): T {
+    return isValueSource(source) ? source.value : source;
+  }
 }
 export type StringData =
   | StringData.Immediate
   | Async<StringData.Immediate>;
 export namespace StringData {
   export type Immediate =
-    // | LiteralData<string>
-    | StringSource
+    | StringSource.Immediate
     | string;
+  export const snapshot: <T extends string>(source: ValueData<T>) => T = ValueData.snapshot;
 }
 export type NumberData =
   | NumberData.Immediate
   | Async<NumberData.Immediate>;
 export namespace NumberData {
   export type Immediate =
-    // | LiteralData<number>
-    | NumberSource
+    | NumberSource.Immediate
     | number;
+  export const snapshot = ValueData.snapshot<number>;
 }
 export type BooleanData =
   | BooleanData.Immediate
   | Async<BooleanData.Immediate>;
 export namespace BooleanData {
   export type Immediate =
-    // | LiteralData<boolean>
-    | BooleanSource
+    | BooleanSource.Immediate
     | boolean;
+  export const snapshot = ValueData.snapshot<boolean>;
 }
 /**
  * Primitives excluding symbols and bigints.
@@ -72,43 +58,53 @@ export type ArrayData<T> =
   | Async<ArrayData.Immediate<T>>;
 export namespace ArrayData {
   export type Immediate<T> =
-    // | LiteralData<readonly T[]>
-    | ArraySource<T>
+    | ArraySource.Immediate<T>
     | readonly T[];
+  export function snapshot<T> (source: Immediate<T>): readonly T[] {
+    return isArraySource(source) ? source.__array : source;
+  }
 }
 export type MapData<K, V> =
   | MapData.Immediate<K, V>
   | Async<MapData.Immediate<K, V>>;
 export namespace MapData {
   export type Immediate<K, V> =
-    // | LiteralData<ReadonlyMap<K, V>>
-    | MapSource<K, V>
+    | MapSource.Immediate<K, V>
     | Map<K, V>;
+  export function snapshot<K, V> (source: Immediate<K, V>): ReadonlyMap<K, V> {
+    return isMapSource(source) ? source.__map : source;
+  }
 }
 export type SetData<T> =
   | SetData.Immediate<T>
   | Async<SetData.Immediate<T>>;
 export namespace SetData {
   export type Immediate<T> =
-    // | LiteralData<ReadonlySet<T>>
-    | SetSource<T>
+    | SetSource.Immediate<T>
     | Set<T>;
+  export function snapshot<T> (source: Immediate<T>): ReadonlySet<T> {
+    return isSetSource(source) ? source.__set : source;
+  }
 }
 export type FixedRecordData<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
   | FixedRecordData.Immediate<TRecord, TEventPerField>
   | Async<FixedRecordData.Immediate<TRecord, TEventPerField>>;
 export namespace FixedRecordData {
   export type Immediate<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
-    // | LiteralData<TRecord>
-    | FixedRecordSource<TRecord, TEventPerField>
+    | FixedRecordSource.Immediate<TRecord, TEventPerField>
     | TRecord;
+  export function snapshot<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown>> (source: Immediate<TRecord, TEventPerField>): Readonly<TRecord> {
+    return isFixedRecordSource(source) ? source.__record : source;
+  }
 }
 export type AssociativeRecordData<T> =
   | AssociativeRecordData.Immediate<T>
   | Async<AssociativeRecordData.Immediate<T>>;
 export namespace AssociativeRecordData {
   export type Immediate<T> =
-    // | LiteralData<Record<string, T>>
-    | AssociativeRecordSource<T>
+    | AssociativeRecordSource.Immediate<T>
     | Record<string, T>;
+  export function snapshot<T> (source: Immediate<T>): Record<string, T> {
+    return isAssociativeRecordSource(source) ? source.__record : source;
+  }
 }

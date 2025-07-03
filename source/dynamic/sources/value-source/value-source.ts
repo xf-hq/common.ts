@@ -7,7 +7,7 @@ import { ConstantValueSource } from './constant-value-source';
 import { ManualCounterSource, ManualValueSource } from './manual-value-source';
 import type { NumberSource } from './number-source';
 
-export function isValueSource<T> (value: any): value is ValueSource<T> {
+export function isValueSource (value: any): value is ValueSource {
   return value?.[ValueSourceTag] === true;
 }
 

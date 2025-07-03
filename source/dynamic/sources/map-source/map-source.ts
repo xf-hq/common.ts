@@ -10,7 +10,7 @@ import { MapSourceFromEntries } from './map-source-from-entries';
 import { MappedMapSource } from './mapped-map-source';
 import { StatefulMappedMapSource } from './stateful-mapped-map-source';
 
-export function isMapSource (value: unknown): value is MapSource<any, any> {
+export function isMapSource (value: any): value is MapSource<any, any> {
   return value?.[MapSourceTag] === true;
 }
 

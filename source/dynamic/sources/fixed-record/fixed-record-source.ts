@@ -1,8 +1,12 @@
 import { Subscribable } from '../../core/subscribable';
 import { FixedRecordSourceTag } from './common';
 import { ManualFixedRecordSource } from './manual-fixed-record-source';
-import { MappedFixedRecordSourceA2, type RecordMapperA2 } from './mapped-fixed-record-source-a2';
 import { MappedFixedRecordSource } from './mapped-fixed-record-source';
+import { MappedFixedRecordSourceA2, type RecordMapperA2 } from './mapped-fixed-record-source-a2';
+
+export function isFixedRecordSource (source: any): source is FixedRecordSource<any, any> {
+  return source?.[FixedRecordSourceTag] === true;
+}
 
 /**
  * To consume a `FixedRecordSource`:
@@ -64,8 +68,10 @@ export namespace FixedRecordSource {
     }
   }
 
-  export interface Manual<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> extends FixedRecordSource<TRecord, TEventPerField> {
+  export interface Immediate<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> extends FixedRecordSource<TRecord, TEventPerField> {
     readonly __record: Readonly<TRecord>;
+  }
+  export interface Manual<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> extends Immediate<TRecord, TEventPerField> {
     set<K extends keyof TRecord> (key: K, value: TRecord[K]): void;
     set (changes: Partial<TRecord>): void;
   }

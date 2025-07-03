@@ -3,9 +3,8 @@ import type { Subscribable } from '../../core';
 import type { ArraySource } from './array-source';
 
 export const ArraySourceTag: unique symbol = Symbol('ArraySource');
-export const isArraySource = (value: any): value is ArraySource<any> => value?.[ArraySourceTag] === true;
 
-export function createArraySourceSubscription<T, A extends any[]>(
+export function createArraySourceSubscription<T, A extends any[]> (
   source: { readonly __array: readonly T[] | undefined },
   emitter: Subscribable<[event: ArraySource.Event<T>]>,
   subscriber: ArraySource.Subscriber<T, A>,

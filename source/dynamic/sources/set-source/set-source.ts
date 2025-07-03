@@ -4,7 +4,9 @@ import { SetSourceTag } from './common';
 import { DraftSetSourceEvent } from './draft-set-source-event';
 import { ManualSetSource } from './manual-set-source';
 
-export const isSetSource = <T, U> (source: SetSource<T> | U): source is SetSource<T> => source?.[SetSourceTag] === true;
+export function isSetSource (source: any): source is SetSource<any> {
+  return source?.[SetSourceTag] === true;
+}
 
 export interface SetSource<T> {
   readonly [SetSourceTag]: true;
