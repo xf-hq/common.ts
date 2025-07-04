@@ -202,12 +202,39 @@ export const ResettableObservableMasterLatch = class implements ResettableObserv
 };
 
 export interface Future<T extends readonly any[]> extends ObservableLatch, Hold<T> {}
+export function Future<T extends readonly any[]> (onWrite?: LatchHandle | LatchHandle['release']): FutureController<T> {
+  const future = new FutureController<T>();
+  if (onWrite) Monitor.attach(future, onWrite);
+  return future;
+}
+export namespace Future {
+  export function of<T extends readonly any[]> (...value: T): FutureController<T> {
+    const future = new FutureController<T>();
+    future.write(...value);
+    return future;
+  }
+
+  export function concat<A extends readonly any[], B extends readonly any[]> (
+    a: Future<A>,
+    b: Future<B>,
+    sink: Sink_<[...A, ...B], void>,
+    detach?: Monitor,
+  ): void {
+    Latch.and(a, b, LatchHandle(() => a.read(Sink((...a: A) => b.read(Sink((...b: B) => Sink.write(sink, ...a, ...b)))))), detach);
+  }
+}
 export interface VoidableFuture<T extends readonly any[]> extends ResettableObservableLatch, Hold<T> {}
 export interface FutureController<T extends readonly any[]> extends Sink<T, void>, Future<T> {}
 
-export const ObservableFuture = class _<T extends readonly any[]> extends ObservableMasterLatch implements FutureController<T> {
+export const FutureController = class _<T extends readonly any[]> implements Monitor, FutureController<T> {
   private readonly _latch = new ObservableMasterLatch();
   private _value: T;
+
+  get waiting (): boolean { return this._latch.waiting; }
+
+  attach (handle: LatchHandle, detach?: Monitor): void {
+    this._latch.attach(handle, detach);
+  }
 
   read<R> (sink: Sink<T, R>): R {
     if (this._latch.waiting) {
@@ -225,27 +252,6 @@ export const ObservableFuture = class _<T extends readonly any[]> extends Observ
   }
 };
 
-export function Future<T extends readonly any[]> (onWrite?: LatchHandle | LatchHandle['release']): FutureController<T> {
-  const future = new ObservableFuture<T>();
-  if (onWrite) Monitor.attach(future, onWrite);
-  return future;
-}
-export namespace Future {
-  export function of<T extends readonly any[]> (...value: T): FutureController<T> {
-    const future = new ObservableFuture<T>();
-    future.write(...value);
-    return future;
-  }
-
-  export function concat<A extends readonly any[], B extends readonly any[]> (
-    a: Future<A>,
-    b: Future<B>,
-    sink: Sink_<[...A, ...B], void>,
-    detach?: Monitor,
-  ): void {
-    Latch.and(a, b, LatchHandle(() => a.read(Sink((...a: A) => b.read(Sink((...b: B) => Sink.write(sink, ...a, ...b)))))), detach);
-  }
-}
 
 export class QueueableEventLatch<T> {
   private readonly _latch = new ResettableObservableMasterLatch();

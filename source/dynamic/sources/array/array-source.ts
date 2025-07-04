@@ -30,13 +30,13 @@ export function isArraySource (source: any): source is ArraySource<any> {
  */
 export interface ArraySource<T> {
   readonly [ArraySourceTag]: true;
-  subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<T>], A>, ...args: A): ArraySource.Subscription<T>;
+  subscribe<A extends any[]> (subscriber: ArraySource.Subscriber<T, A>, ...args: A): ArraySource.Subscription<T>;
 }
 export namespace ArraySource {
   export interface Receiver<T, A extends any[] = []> extends Subscribable.Receiver<[event: ArraySource.Event<T>], A> {
     init? (subscription: ArraySource.Subscription<T>, ...args: A): void;
   }
-  export type Subscriber<T, A extends any[]> = Subscribable.Subscriber<[event: ArraySource.Event<T>], A>;
+  export type Subscriber<T, A extends any[]> = Receiver<T, A> | Receiver<T, A>['event'];
   export interface Subscription<T> extends Disposable {
     readonly __array: readonly T[];
   }
@@ -169,8 +169,8 @@ export namespace ArraySource {
     export interface DemandObserver<T> {
       online? (source: Manual<T>): void;
       offline? (source: Manual<T>): void;
-      subscribe? (source: Manual<T>, receiver: Subscribable.Receiver<[event: ArraySource.Event<T>], any[]>): void;
-      unsubscribe? (source: Manual<T>, receiver: Subscribable.Receiver<[event: ArraySource.Event<T>], any[]>): void;
+      subscribe? (source: Manual<T>, receiver: ArraySource.Receiver<T, any[]>): void;
+      unsubscribe? (source: Manual<T>, receiver: ArraySource.Receiver<T, any[]>): void;
     }
     export namespace DemandObserver {
       export function create<T> (online: (abortSignal: AbortSignal, array: Manual<T>) => void): DemandObserver<T>;

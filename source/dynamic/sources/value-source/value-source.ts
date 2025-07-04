@@ -50,20 +50,26 @@ export namespace ValueSource {
     unsubscribe? (source: Manual<T>, receiver: Receiver<T, unknown[]>): void;
   }
 
-  export type Maybe<T = unknown> = ValueSource<ValueSource<T> | null>;
-  export namespace Maybe {
-    export type Subscriber<T, A extends any[]> = Subscribable.Subscriber<[source: ValueSource<T> | null], A>;
-    export type Subscription<T> = ValueSource.Subscription<ValueSource<T> | null>;
-    export type Receiver<T, A extends any[]> = Subscribable.Receiver<[source: ValueSource<T> | null], A>;
-    export type Manual<T = unknown> = ValueSource.Manual<ValueSource<T> | null>;
-    export function create<T> (initialValue: ValueSource<T> | null = null, onDemandChanged?: DemandObserver<ValueSource<T> | null>) {
-      return ValueSource.create(initialValue, onDemandChanged);
+  export function subscribe<T, A extends any[]> (source: ValueSource<T>, receiver: Subscriber<T, A>, ...args: A): ValueSource.Subscription<T>;
+  export function subscribe<T, A extends any[]> (abort: AbortSignal, source: ValueSource<T>, receiver: Subscriber<T, A>, ...args: A): ValueSource.Subscription<T>;
+  export function subscribe<T, A extends any[]> (arg0: AbortSignal | ValueSource<T>) {
+    let abort: AbortSignal | undefined;
+    let source: ValueSource<T>;
+    let receiver: Subscriber<T, A>;
+    let args: A;
+    if (arg0 instanceof AbortSignal) {
+      abort = arg0;
+      source = arguments[1];
+      receiver = arguments[2];
+      args = Array.prototype.slice.call(arguments, 3) as A;
     }
-  }
-
-  export function subscribe<T, A extends any[]> (abort: AbortSignal, source: ValueSource<T>, receiver: Subscriber<T, A>, ...args: A): ValueSource.Subscription<T> {
+    else {
+      source = arg0;
+      receiver = arguments[1];
+      args = Array.prototype.slice.call(arguments, 2) as A;
+    }
     const sub = source.subscribe(receiver, ...args);
-    disposeOnAbort(abort, sub);
+    if (abort) disposeOnAbort(abort, sub);
     return sub;
   }
 
@@ -74,6 +80,8 @@ export namespace ValueSource {
     get status (): Subscribable.DemandStatus;
   }
   export interface Manual<T = unknown> extends Immediate<T> {
+    hold (): void;
+    release (): void;
     set (value: T, final?: boolean): boolean;
     finalize (): void;
   }

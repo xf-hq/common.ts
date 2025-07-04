@@ -13,9 +13,12 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
       : new Subscribable.Controller();
   }
   readonly #emitter: Subscribable.Controller<[value: T]>;
+  readonly #status = new Subscribable.SignalStatus<[]>();
   #finalization?: Async.Manual<true>;
   #isManuallyFinalized = false;
   #value: T;
+  /** Only used when in a holding state */
+  #hold: { unchangedValue: T } | undefined;
 
   get [ValueSourceTag] () { return true as const; }
 
@@ -48,6 +51,33 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     return subscription;
   }
 
+  hold (): void {
+    if (this.isFinalized) return;
+
+    this.#hold = { unchangedValue: this.#value };
+    if (this.#status.initiateHold()) {
+      this.#emitter.hold();
+    }
+  }
+  release (): void {
+    if (!this.#hold) return;
+
+    if (this.#status.releaseHold()) {
+      let unchangedValue = this.#hold!.unchangedValue;
+      while (unchangedValue !== this.#value) {
+        // Just in case `event` cycles back to a call to `set` before the `event` call returns:
+        this.#hold.unchangedValue = this.#value;
+        this.#emitter.event(this.#value);
+        unchangedValue = this.#hold!.unchangedValue;
+      }
+      this.#hold = undefined;
+      if (this.isFinalized) {
+        this.finalizeInternal();
+      }
+      this.#emitter.release();
+    }
+  }
+
   set (value: T, final = false): boolean {
     if (this.isFinalized) {
       throw new Error(`Cannot set value. Source has already been finalized.`);
@@ -57,18 +87,22 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
     // We're about to signal subscribers, and they might check whether the value is finalized, so we need to pre-set
     // isManuallyFinalized to true before signalling.
     if (final) this.#isManuallyFinalized = true;
-    this.#emitter?.event(value);
-    // We trigger the actual finalization event only after the change signal has been emitted (above), otherwise we'll
-    // end up having to violate our own rules by telling subscribers that the value has changed after we've told them
-    // that it has been finalized.
-    if (final) this.finalizeInternal();
+    if (!this.#status.isOnHold) {
+      this.#emitter?.event(value);
+      // We trigger the actual finalization event only after the change signal has been emitted (above), otherwise we'll
+      // end up having to violate our own rules by telling subscribers that the value has changed after we've told them
+      // that it has been finalized.
+      if (final) this.finalizeInternal();
+    }
     return true;
   }
 
   finalize () {
     if (this.isFinalized) return;
     this.#isManuallyFinalized = true;
-    this.finalizeInternal();
+    if (!this.#status.isOnHold) {
+      this.finalizeInternal();
+    }
   }
 
   private finalizeInternal () {
