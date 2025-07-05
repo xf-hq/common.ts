@@ -128,6 +128,8 @@ export namespace FixedRecordSource {
     readonly __record: Readonly<TRecord>;
   }
   export interface Manual<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> extends Immediate<TRecord, TEventPerField> {
+    hold (): void;
+    release (): void;
     set<K extends keyof TRecord> (key: K, value: TRecord[K]): void;
     set (changes: Partial<TRecord>): void;
   }
