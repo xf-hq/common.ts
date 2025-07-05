@@ -8,6 +8,7 @@ import { ArraySourceTag } from './common';
 import { ConcatArraySource } from './concat-array-source';
 import { FilteredArraySource } from './filtered-array-source';
 import { FluentArraySource } from './fluent-array-source';
+import { ForEachArraySourceElement } from './for-each-array-source-element';
 import { ManualArraySource } from './manual-array-source';
 import { MapSourceEntriesArraySource } from './map-source-entries-array-source';
 import { MappedArraySource } from './mapped-array-source';
@@ -47,17 +48,17 @@ export namespace ArraySource {
       readonly kind: K;
     }
     export interface Push<T> extends BaseEvent<'push'> {
-      readonly values: T[];
+      readonly values: readonly T[];
     }
     export interface Pop extends BaseEvent<'pop'> {}
     export interface Unshift<T> extends BaseEvent<'unshift'> {
-      readonly values: T[];
+      readonly values: readonly T[];
     }
     export interface Shift extends BaseEvent<'shift'> {}
     export interface Splice<T> extends BaseEvent<'splice'> {
       readonly index: number;
       readonly deletions: number;
-      readonly insertions: T[];
+      readonly insertions: readonly T[];
     }
     export interface Set<T> extends BaseEvent<'set'> {
       readonly index: number;
@@ -73,7 +74,7 @@ export namespace ArraySource {
      * "doing it wrong", so to speak.
      */
     export interface Batch<T> extends BaseEvent<'batch'> {
-      readonly events: Event<T>[];
+      readonly events: readonly Event<T>[];
     }
   }
 
@@ -88,13 +89,13 @@ export namespace ArraySource {
 
   export interface EventReceiver<T> {
     init? (subscription: ArraySource.Subscription<T>): void;
-    push (values: T[]): void;
+    push (values: readonly T[]): void;
     pop (): void;
-    unshift (values: T[]): void;
+    unshift (values: readonly T[]): void;
     shift (): void;
-    splice (index: number, deletions: number, insertions: T[]): void;
+    splice (index: number, deletions: number, insertions: readonly T[]): void;
     set (index: number, value: T): void;
-    batch (events: Event<T>[], receiver: Receiver<T>): void;
+    batch (events: readonly Event<T>[], receiver: Receiver<T>): void;
     end? (): void;
     unsubscribed? (): void;
   }
@@ -206,6 +207,7 @@ export namespace ArraySource {
   }
 
   export interface Fluent<T> extends ArraySource<T> {
+    forEach (abortSignal: AbortSignal, callback: (value: T, abortSignal: AbortSignal) => void): void;
     map<U> (f: (a: T) => U): FluentArraySource<U>;
     map<U, TItemState, TCommonState = void> (mapper: ArraySource.StatefulMapper<T, U, TItemState, TCommonState>): FluentArraySource<U>;
     mapToDisposable<U extends Disposable> (f: (a: T) => U): FluentArraySource<U>;
@@ -222,6 +224,10 @@ export namespace ArraySource {
 
   export function fluent<T> (source: ArraySource<T>): Fluent<T> {
     return source instanceof FluentArraySource ? source : new FluentArraySource(source);
+  }
+
+  export function forEach<T> (abortSignal: AbortSignal, source: ArraySource<T>, callback: (value: T, abortSignal: AbortSignal) => void): void {
+    subscribe(abortSignal, source, new ForEachArraySourceElement(abortSignal, callback));
   }
 
   export interface StatefulMapper<A, B, TItemState, TCommonState = void> {
