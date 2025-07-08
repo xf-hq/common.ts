@@ -9,7 +9,7 @@ export interface ConsoleLogger {
   error: (message: string | Error, ...args: any[]) => void;
   /** For when we want a non-error message to be presented with similar prominence to an error message. */
   critical: (message: string, ...args: any[]) => void;
-  /** Alias for `critical`. */
+  /** More severe than `warn` but less severe than `critical` or `error`. If differentiation is not required, treat this as an alias for `critical`. */
   problem: (message: string, ...args: any[]) => void;
   /** For when we want to present a message indicating that significant work is being performed that will most likely have a noteworthy effect on persistent state. */
   working: (message: string, ...args: any[]) => void;

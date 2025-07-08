@@ -71,7 +71,11 @@ class DevtoolsConsoleLabelledLogger implements ConsoleLogger {
   }
   todo (message: string, fields?: SRecord): void {
     const msg = cmsg([this.#label, cmsg.std.label.bg('red', 900).yellow('TODO'), cmsg.std.mc.yellow(message)]);
-    if (fields) msg.collapseGroup().printGroup(() => console.dir(fields));
+    if (fields) msg.printGroup(() => {
+      for (const key in fields) {
+        cmsg.std.punctuated(['• ', cmsg.std.fieldName(key), ':']).args(fields[key]).print();
+      }
+    });
     else msg.print();
   }
   object (value: any): void {

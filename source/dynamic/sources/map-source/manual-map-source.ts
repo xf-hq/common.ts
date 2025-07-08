@@ -113,7 +113,7 @@ export class ManualMapSource<K, V> implements MapSource.Immediate<K, V>, MapSour
     ) {}
     online (): void { this.onDemandChanged.online?.(this.source); }
     offline (): void { this.onDemandChanged.offline?.(this.source); }
-    subscribe (receiver: MapSource.Receiver<K, V, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
-    unsubscribe (receiver: MapSource.Receiver<K, V, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
+    onSubscribe (receiver: MapSource.Receiver<K, V, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
+    onUnsubscribe (receiver: MapSource.Receiver<K, V, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
   };
 }

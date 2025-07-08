@@ -64,6 +64,7 @@ export namespace terminal {
     errorDefault(label, message, ...args);
   }
   export const critical = taggedConsoleLogger({ defaultColor: red, log: console.error });
+  export const problem = taggedConsoleLogger({ defaultColor: red, icon: '‼️', log: console.log });
   export const working = taggedConsoleLogger({ defaultColor: amber800, log: console.info });
   export const warn = taggedConsoleLogger({ defaultColor: orange700, brightColor: orange700, icon: '⚠️', log: console.warn });
   export const info = taggedConsoleLogger({ defaultColor: lightBlue, log: console.info });
@@ -116,7 +117,7 @@ export namespace terminal {
     fatal: (message: string, ...args: any[]) => error(null, message, ...args),
     error: (message: string | Error, ...args: any[]) => error(null, message, ...args),
     critical: (message: string, ...args: any[]) => critical(null, message, ...args),
-    problem: (message: string, ...args: any[]) => critical(null, message, ...args),
+    problem: (message: string, ...args: any[]) => problem(null, message, ...args),
     working: (message: string, ...args: any[]) => working(null, message, ...args),
     good: (message: string, ...args: any[]) => good(null, message, ...args),
     boring: (message: string, ...args: any[]) => boring(null, message, ...args),

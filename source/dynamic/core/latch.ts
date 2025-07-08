@@ -1,3 +1,6 @@
+import { isFunction } from '../../general/type-checking';
+import { ValueSource } from '../sources';
+
 export interface Latch {
   readonly waiting: boolean;
 }
@@ -208,7 +211,12 @@ export function Future<T extends readonly any[]> (onWrite?: LatchHandle | LatchH
   return future;
 }
 export namespace Future {
-  export function of<T extends readonly any[]> (...value: T): FutureController<T> {
+  export function read<T extends readonly any[], R> (future: Future<T>, sink: Sink_<T, R>): R {
+    if (isFunction(sink)) sink = { write: sink };
+    return future.read(sink);
+  }
+
+  export function now<T extends readonly any[]> (...value: T): FutureController<T> {
     const future = new FutureController<T>();
     future.write(...value);
     return future;
@@ -221,6 +229,82 @@ export namespace Future {
     detach?: Monitor,
   ): void {
     Latch.and(a, b, LatchHandle(() => a.read(Sink((...a: A) => b.read(Sink((...b: B) => Sink.write(sink, ...a, ...b)))))), detach);
+  }
+
+  export function map<A, B> (source: Future<[A]>, mapFn: (a: A) => B): Future<[B]> {
+    const future = new FutureController<[B]>();
+    Monitor.attach(source, () => source.read(new MappedFutureSink((sink, a) => sink.write(mapFn(a)), future)));
+    return future;
+  }
+  export function mapN<A extends readonly any[], B extends readonly any[]> (
+    source: Future<A>,
+    mapFn: <R>(sink: Sink<B, R>, ...value: A) => R,
+  ): Future<B> {
+    const future = new FutureController<B>();
+    Monitor.attach(source, () => source.read(new MappedFutureSink(mapFn, future)));
+    return future;
+  }
+  class MappedFutureSink<A extends readonly any[], B extends readonly any[], R> implements Sink<A, R> {
+    constructor (
+      readonly map: (sink: Sink<B, R>, ...value: A) => R,
+      readonly out: Sink<B, R>,
+    ) {}
+    write (...value: A): R { return this.map(this.out, ...value); }
+  }
+
+  export function fromNextValue<T> (source: ValueSource<T>): Future<[value: T]> {
+    return onDemand<[value: T]>((sink) => {
+      const abortController = new AbortController();
+      ValueSource.subscribe(abortController.signal, source, (value) => sink.write(value));
+      return abortController;
+    });
+  }
+  export function onDemand<T extends any[]> (onDemand: (sink: Sink<T, void>) => AbortController): Future<T> {
+    return new OnDemandFuture(onDemand);
+  }
+  class OnDemandFuture<T extends any[]> implements Future<T>, Sink<T, void> {
+    constructor (private readonly onDemand: (sink: Sink<T, void>) => AbortController) {}
+    readonly #handles = new Set<LatchHandle>();
+    #waiting = true;
+    #value: T;
+    #abortController: AbortController | undefined;
+
+    get waiting (): boolean { return this.#waiting; }
+
+    attach (handle: LatchHandle, detach?: Monitor): void {
+      if (!this.#waiting) return handle.release();
+      if (detach) Monitor.attach(detach, () => this.detach(handle));
+      this.#handles.add(handle);
+      if (this.#handles.size > 1) return;
+      this.#abortController = this.onDemand(this);
+    }
+    private detach (handle: LatchHandle): void {
+      if (this.#handles.delete(handle) && this.#handles.size === 0) {
+        this.#abortController!.abort();
+        this.#abortController = undefined;
+      }
+    }
+    read<R> (sink: Sink<T, R>): R {
+      if (this.#waiting) {
+        throw new Error(`Cannot read from a Future that is still waiting for a value.`);
+      }
+      return sink.write(...this.#value);
+    }
+    write (...value: T): void {
+      if (!this.#waiting) {
+        throw new Error(`This future has already been written.`);
+      }
+      this.#abortController!.abort();
+      this.#abortController = undefined;
+
+      this.#value = value;
+      this.#waiting = false;
+
+      for (const handle of this.#handles) {
+        handle.release();
+      }
+      this.#handles.clear();
+    }
   }
 }
 export interface VoidableFuture<T extends readonly any[]> extends ResettableObservableLatch, Hold<T> {}

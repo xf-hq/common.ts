@@ -167,7 +167,7 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
     ) {}
     online (): void { this.onDemandChanged.online?.(this.source); }
     offline (): void { this.onDemandChanged.offline?.(this.source); }
-    subscribe (receiver: ArraySource.Receiver<T, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
-    unsubscribe (receiver: ArraySource.Receiver<T, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
+    onSubscribe (receiver: ArraySource.Receiver<T, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
+    onUnsubscribe (receiver: ArraySource.Receiver<T, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
   };
 }

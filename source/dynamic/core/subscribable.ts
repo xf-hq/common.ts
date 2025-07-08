@@ -43,8 +43,8 @@ export namespace Subscribable {
         else switch (event) {
           case 'online': onDemandChanged.online?.(this); break;
           case 'offline': onDemandChanged.offline?.(this); break;
-          case 'subscribe': onDemandChanged.subscribe?.(this, receiver!); break;
-          case 'unsubscribe': onDemandChanged.unsubscribe?.(this, receiver!); break;
+          case 'subscribe': onDemandChanged.onSubscribe?.(this, receiver!); break;
+          case 'unsubscribe': onDemandChanged.onUnsubscribe?.(this, receiver!); break;
         }
       }
     }
@@ -188,8 +188,8 @@ export namespace Subscribable {
     export interface ListenerInterface<TEventArgs extends unknown[]> {
       online? (controller: Controller<TEventArgs>): void;
       offline? (controller: Controller<TEventArgs>): void;
-      subscribe? (controller: Controller<TEventArgs>, receiver: Receiver<TEventArgs, unknown[]>): void;
-      unsubscribe? (controller: Controller<TEventArgs>, receiver: Receiver<TEventArgs, unknown[]>): void;
+      onSubscribe? (controller: Controller<TEventArgs>, receiver: Receiver<TEventArgs, unknown[]>): void;
+      onUnsubscribe? (controller: Controller<TEventArgs>, receiver: Receiver<TEventArgs, unknown[]>): void;
     }
   }
 

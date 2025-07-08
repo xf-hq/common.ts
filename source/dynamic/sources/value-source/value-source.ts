@@ -10,6 +10,11 @@ import type { NumberSource } from './number-source';
 export function isValueSource (value: any): value is ValueSource {
   return value?.[ValueSourceTag] === true;
 }
+export namespace isValueSource {
+  export function Immediate<T> (value: ValueSource<T>): value is ValueSource.Immediate<T> {
+    return 'value' in value;
+  }
+}
 
 /**
  * To consume a `ValueSource`:

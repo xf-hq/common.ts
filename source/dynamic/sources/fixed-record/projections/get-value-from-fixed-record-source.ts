@@ -1,61 +1,174 @@
-import { dispose } from '../../../../general/disposables';
-import type { ValueData } from '../../../data';
+import { dispose, tryDispose } from '../../../../general/disposables';
+import { Async } from '../../../async/async';
+import { Subscribable } from '../../../core';
+import { ValueData } from '../../../data';
+import { normalizeValueSourceReceiverArg, ValueSourceTag } from '../../value-source/common';
 import { isValueSource, ValueSource } from '../../value-source/value-source';
 import { FixedRecordSource } from '../fixed-record-source';
 
 type ValueType<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> = T[K] extends ValueData.NotAsync<infer V> ? V : never;
+type RawValue<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> = ValueType<T, K> | ValueSource<ValueType<T, K>>;
 
-export class GetValueFromFixedRecordSourceDemandObserver<T extends Record<string, ValueData.NotAsync<unknown>>, E extends MapRecord<T, any>, K extends SRecord.KeyOf<T>>
-implements ValueSource.DemandObserver<ValueType<T, K>>, FixedRecordSource.EventReceiver<T, E> {
+export class GetValueFromFixedRecordSource<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>>
+implements ValueSource<ValueType<T, K>>, Subscribable.DemandObserver.ListenerInterface<[value: ValueType<T, K>]> {
   constructor (
-    private readonly source: FixedRecordSource<T>,
+    private readonly source: FixedRecordSource<T> | FixedRecordSource.Immediate<T>,
     private readonly key: K,
   ) {}
-  #out: ValueSource.Manual<ValueType<T, K>>;
-  #sub_record: FixedRecordSource.Subscription<T> | undefined;
-  #sub_value: ValueSource.Subscription<ValueType<T, K>> | undefined;
+  readonly #emitter = new Subscribable.Controller<[value: ValueType<T, K>]>(this);
+  #state: State<T, K> | undefined;
 
-  online (out: ValueSource.Manual<ValueType<T, K>>): void {
-    this.#out = out;
-    this.#sub_record = FixedRecordSource.subscribe(this.source, this);
-    this._consume(this.#sub_record.__record[this.key]);
-  }
-  offline (out: ValueSource.Manual<ValueType<T, K>>): void {
-    dispose(this.#sub_record!);
-    this.#sub_record = undefined;
+  get [ValueSourceTag] (): true { return true; }
+
+  subscribe<A extends any[]> (receiver: ValueSource.Subscriber<ValueType<T, K>, A>, ...args: A): ValueSource.Subscription<ValueType<T, K>> {
+    receiver = normalizeValueSourceReceiverArg(receiver);
+    const disposable = this.#emitter.subscribe(receiver, ...args);
+    return new Subscription<T, K, A>(this.#state!, disposable, receiver, args);
   }
 
+  online (out: Subscribable.Controller<[value: ValueType<T, K>]>): void {
+    const state: State<T, K> = this.#state = {
+      outerSubscription: null,
+      innerSubscription: null,
+      finalization: Async.create(),
+      outerEnded: false,
+      innerEnded: false,
+      rawValue: undefined!,
+      value: undefined!,
+    };
+    FixedRecordSource.subscribe(this.source, new OuterReceiver(this.key, out, state));
+  }
+  offline (out: Subscribable.Controller<[value: ValueType<T, K>]>): void {
+    const state = this.#state!;
+    tryDispose(state.outerSubscription);
+    tryDispose(state.innerSubscription);
+    this.#state = undefined;
+  }
+}
+
+interface State<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> {
+  outerSubscription: FixedRecordSource.Subscription<T> | null;
+  innerSubscription: ValueSource.Subscription<ValueType<T, K>> | null;
+  finalization: Async.Manual<true>;
+  outerEnded: boolean;
+  innerEnded: boolean;
+  rawValue: RawValue<T, K>;
+  value: ValueType<T, K>;
+}
+
+class OuterReceiver<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> implements FixedRecordSource.EventReceiver<T, MapRecord<T, any>> {
+  constructor (
+    private readonly _key: K,
+    private readonly _emitter: Subscribable.Controller<[value: ValueType<T, K>]>,
+    private readonly _state: State<T, K>,
+  ) {}
+
+  init (sub: FixedRecordSource.Subscription<T>): void {
+    const state = this._state;
+    state.outerSubscription = sub;
+    const rawValue = sub.__record[this._key] as RawValue<T, K>;
+    this._setRaw(rawValue);
+  }
   set (values: Partial<T>): void {
-    if (this.key in values) {
-      const source = values[this.key]!;
-      this._consume(source);
-    }
+    if (!(this._key in values)) return;
+    const rawValue = values[this._key] as RawValue<T, K>;
+    if (rawValue === this._state.rawValue) return;
+    this._setRaw(rawValue);
   }
-  patch (changes: Partial<E>): void {
-    if (this.key in changes) {
-      const value = changes[this.key] as ValueType<T, K>;
-      this.#out.set(value);
-    }
+  patch (changes: Partial<MapRecord<T, any>>): void {
+    if (!(this._key in changes)) return;
+    throw new Error(`Not Implemented`);
   }
-  batch (events: readonly FixedRecordSource.Event<T, E>[], receiver: FixedRecordSource.Receiver<T, E, any[]>): void {
-    this.#out.hold();
+  batch (events: readonly FixedRecordSource.Event<T, MapRecord<T, any>>[], receiver: FixedRecordSource.Receiver<T, MapRecord<T, any>, any[]>): void {
+    this._emitter.hold();
     for (const event of events) {
       receiver.event(event);
     }
-    this.#out.release();
+    this._emitter.release();
+  }
+  end (): void {
+    this._state.outerEnded = true;
+    if (this._state.innerEnded) {
+      this._emitter.end();
+    }
   }
 
-  _consume (source: T[K]): void {
-    if (this.#sub_value) dispose(this.#sub_value);
-    if (isValueSource(source)) {
-      if (this.#sub_value) dispose(this.#sub_value);
-      this.#sub_value = ValueSource.subscribe(source, this._set);
+  _setRaw (rawValue: RawValue<T, K>): void {
+    const state = this._state;
+    state.rawValue = rawValue;
+    tryDispose(state.innerSubscription);
+    if (isValueSource(rawValue)) {
+      state.innerEnded = false;
+      ValueSource.subscribe(rawValue, new InnerReceiver(this._emitter, state));
     }
     else {
-      this.#out.set(source as ValueType<T, K>);
+      state.innerEnded = true;
+      state.value = rawValue;
+      this._emitter.event(rawValue);
     }
   }
-  _set = (value: ValueType<T, K>): void => {
-    this.#out.set(value);
-  };
+}
+
+class InnerReceiver<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> implements ValueSource.Receiver<ValueType<T, K>> {
+  constructor (
+    private readonly _emitter: Subscribable.Controller<[value: ValueType<T, K>]>,
+    private readonly _state: State<T, K>,
+  ) {}
+
+  init (sub: ValueSource.Subscription<ValueType<T, K>>): void {
+    this._state.innerSubscription = sub;
+    this._state.value = sub.value;
+  }
+  event (value: ValueType<T, K>): void {
+    const state = this._state;
+    if (state.innerEnded || state.value === value) return;
+    state.value = value;
+    this._emitter.event(value);
+  }
+  end (): void {
+    this._state.innerEnded = true;
+    if (this._state.outerEnded) {
+      this._emitter.end();
+    }
+  }
+}
+
+class Subscription<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>, A extends any[]> implements ValueSource.Subscription<ValueType<T, K>> {
+  constructor (
+    private readonly _state: State<T, K>,
+    private readonly _disposable: Disposable,
+    private readonly _receiver: ValueSource.Receiver<ValueType<T, K>, A>,
+    private readonly _args: A,
+  ) {}
+  #disposed = false;
+
+  get value (): ValueType<T, K> {
+    this._assertNotDisposed();
+    return this._state.value;
+  }
+  get finalization (): Async<true> {
+    this._assertNotDisposed();
+    return this._state.finalization;
+  }
+  get isFinalized (): boolean {
+    this._assertNotDisposed();
+    return this._state.finalization.finalized;
+  }
+
+  echo (): this {
+    this._assertNotDisposed();
+    this._receiver.event(this._state.value, ...this._args);
+    return this;
+  }
+
+  [Symbol.dispose] (): void {
+    if (this.#disposed) return;
+    dispose(this._disposable);
+  }
+
+  private _assertNotDisposed (): void {
+    if (this.#disposed) {
+      throw new Error(`Subscription is disposed`);
+    }
+  }
 }

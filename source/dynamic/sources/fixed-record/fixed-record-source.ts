@@ -1,15 +1,21 @@
 import { disposeOnAbort } from '../../../general/disposables';
+import { isFunction, isPlainObject } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
-import type { ValueData } from '../../data';
+import { ValueData } from '../../data';
 import { ValueSource } from '../value-source/value-source';
 import { FixedRecordSourceTag } from './common';
 import { ManualFixedRecordSource } from './manual-fixed-record-source';
 import { MappedFixedRecordSource } from './mapped-fixed-record-source';
 import { MappedFixedRecordSourceA2, type RecordMapperA2 } from './mapped-fixed-record-source-a2';
-import { GetValueFromFixedRecordSourceDemandObserver } from './projections/get-value-from-fixed-record-source';
+import { GetValueFromFixedRecordSource } from './projections/get-value-from-fixed-record-source';
 
 export function isFixedRecordSource (source: any): source is FixedRecordSource<any, any> {
   return source?.[FixedRecordSourceTag] === true;
+}
+export namespace isFixedRecordSource {
+  export function Immediate<T extends AnyRecord, E extends MapRecord<T, unknown>> (source: FixedRecordSource<T, E>): source is FixedRecordSource.Immediate<T, E> {
+    return '__record' in source;
+  }
 }
 
 /**
@@ -146,6 +152,9 @@ export namespace FixedRecordSource {
     record: TRecord,
     onDemandChanged?: Manual.DemandObserver<TRecord, TEventPerField>
   ): Manual<TRecord, TEventPerField> {
+    if (!isPlainObject(record) && isFunction(record['online'])) {
+      throw new Error(`First argument is supposed to be an initial record. It looks like you only passed in a DemandObserver.`);
+    }
     return new ManualFixedRecordSource(record, onDemandChanged);
   }
 
@@ -156,9 +165,7 @@ export namespace FixedRecordSource {
    */
   export function getAndUnboxValueDataField<TSource extends FixedRecordSource<{ [P in K]: ValueData<any> }, any>, K extends Keys<TSource>> (key: K, source: TSource): ValueOf<TSource, K>;
   export function getAndUnboxValueDataField (key: any, source: FixedRecordSource<any, any>): ValueSource<any> {
-    const demandObserver = new GetValueFromFixedRecordSourceDemandObserver(source, key);
-    // If it's not a FixedRecordSource.Immediate, the following will still work as expected.
-    return ValueSource.create((source as any).__record, demandObserver);
+    return new GetValueFromFixedRecordSource(source, key);
   }
 
   export function map<

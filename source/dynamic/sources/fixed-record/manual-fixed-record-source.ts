@@ -77,7 +77,7 @@ implements InternalFixedRecordSource<TRecord, TEventPerField>, FixedRecordSource
     ) {}
     online (): void { this.onDemandChanged.online?.(this.source); }
     offline (): void { this.onDemandChanged.offline?.(this.source); }
-    subscribe (receiver: FixedRecordSource.Receiver<TRecord, TEventPerField, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
-    unsubscribe (receiver: FixedRecordSource.Receiver<TRecord, TEventPerField, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
+    onSubscribe (receiver: FixedRecordSource.Receiver<TRecord, TEventPerField, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
+    onUnsubscribe (receiver: FixedRecordSource.Receiver<TRecord, TEventPerField, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
   };
 }

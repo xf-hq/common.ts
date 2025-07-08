@@ -84,7 +84,7 @@ export class ManualSetSource<T> implements SetSource.Manual<T> {
     ) {}
     online (): void { this.onDemandChanged.online?.(this.source); }
     offline (): void { this.onDemandChanged.offline?.(this.source); }
-    subscribe (receiver: SetSource.Receiver<T, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
-    unsubscribe (receiver: SetSource.Receiver<T, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
+    onSubscribe (receiver: SetSource.Receiver<T, any[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
+    onUnsubscribe (receiver: SetSource.Receiver<T, any[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
   };
 }

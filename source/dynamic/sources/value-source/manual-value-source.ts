@@ -1,17 +1,22 @@
 import { dispose } from '../../../general/disposables';
+import { IdGenerator } from '../../../general/ids-and-caching';
 import { isDefined } from '../../../general/type-checking';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
 import { normalizeValueSourceReceiverArg, ValueSourceTag } from './common';
-import type { ValueSource } from './value-source';
+import { isValueSource, type ValueSource } from './value-source';
 
 export class ManualValueSource<T> implements ValueSource.Manual<T> {
   constructor (initialValue: T, onDemandChanged?: ValueSource.DemandObserver<T>) {
+    if (isValueSource(initialValue)) {
+      throw new Error(`This looks like a mistake. The initial value should be a value, not a ValueSource.`);
+    }
     this.#value = initialValue;
     this.#emitter = onDemandChanged
       ? new Subscribable.Controller(new DemandObserverAdapter(this, onDemandChanged))
       : new Subscribable.Controller();
   }
+  id = IdGenerator.global();
   readonly #emitter: Subscribable.Controller<[value: T]>;
   readonly #status = new Subscribable.SignalStatus<[]>();
   #finalization?: Async.Manual<true>;
@@ -81,6 +86,9 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
   set (value: T, final = false): boolean {
     if (this.isFinalized) {
       throw new Error(`Cannot set value. Source has already been finalized.`);
+    }
+    if (isValueSource(value)) {
+      throw new Error(`This looks like a mistake. The value should be a value, not a ValueSource.`);
     }
     if (value === this.#value) return false;
     this.#value = value;
@@ -179,6 +187,6 @@ class DemandObserverAdapter<T> implements Subscribable.DemandObserver.ListenerIn
   ) {}
   online (): void { this.onDemandChanged.online?.(this.source); }
   offline (): void { this.onDemandChanged.offline?.(this.source); }
-  subscribe (receiver: ValueSource.Receiver<T, unknown[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
-  unsubscribe (receiver: ValueSource.Receiver<T, unknown[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
+  onSubscribe (receiver: ValueSource.Receiver<T, unknown[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
+  onUnsubscribe (receiver: ValueSource.Receiver<T, unknown[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
 }

@@ -1,4 +1,5 @@
 import { isFunction, isPromiseLike } from '../../general/type-checking';
+import { Monitor, type ObservableLatch } from '../core';
 import { AsyncFromPromise } from './async-from-promise';
 import { AsyncTag } from './common';
 import { ManualAsync } from './manual-async';
@@ -60,6 +61,12 @@ export namespace Async {
   export function fromPromise<T> (promise: PromiseLike<T> | PromiseInit<T>): Async<T> {
     if (isFunction(promise)) promise = new Promise<T>(promise);
     return AsyncFromPromise.create(promise);
+  }
+  export function monitor (source: Monitor | ObservableLatch, cancel?: AbortSignal | (() => void)): Async<true> {
+    if ('waiting' in source && !source.waiting) return resolved(true);
+    const async = new ManualAsync<true>();
+    Monitor.attach(source, () => async.set(true), cancel);
+    return async;
   }
   export function onDemand<T> (driver: StatefulDriver<T>): OnDemandAsync<T> { return OnDemandAsync.create(driver); }
   export function map<A, B> (f: (a: A) => B, source: Async<A>): Async<B> { return Async.fromPromise(source.then(f)); }
