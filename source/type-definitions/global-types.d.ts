@@ -33,6 +33,11 @@ declare type UnknownRecord = Record<keyof any, unknown>;
 declare type RecordOf<V> = Record<string, V>;
 declare type NestableRecordOf<V> = Record<string, V | Exclude<{ [K in string]: V }, V>>;
 
+declare interface TypedRecord<T extends string = string, D = any> {
+  readonly type: T;
+  readonly data: D;
+}
+
 /**
  * The `S` prefix is an overloaded mnemonic for "Safe", "String (keys)", and "Serializable (where applicable)". It is
  * designed to make it easier to work with objects and records exclusively in terms of string-typed keys, and to
