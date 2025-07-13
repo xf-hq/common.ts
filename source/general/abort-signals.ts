@@ -70,10 +70,10 @@ export class SharedDemandAbortController extends AbortController {
     super.abort();
   }
 
-  static initializeSharedResource<T> (init: (abortSignal: AbortSignal) => [resource: T, cleanUp: () => void]): SharedDemandAbortController.Current<T> {
+  static initializeSharedResource<T> (init: (abortSignal: AbortSignal) => [resource: T, cleanUp: (resource: T) => void]): SharedDemandAbortController.Current<T> {
     const controller = new SharedDemandAbortController();
     const [resource, cleanUp] = init(controller.signal);
-    controller.signal.addEventListener('abort', cleanUp);
+    controller.signal.addEventListener('abort', () => cleanUp(resource));
     return { controller, resource };
   }
 }

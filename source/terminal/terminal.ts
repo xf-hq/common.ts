@@ -4,7 +4,7 @@ import { StaticColor } from '../color/static-color';
 import { ConsoleLogger } from '../facilities/logging';
 import { neverRegisterAsDisposed } from '../general/disposables';
 import { isPlainObject, isString, isUndefined } from '../general/type-checking';
-import { amber800, colorizer, gray, gray400, gray700, gray800, gray900, lightBlue, lightBlue300, lime, orange, orange700, pink200, purple, red, red700, teal, yellow400 } from './colorizers';
+import { amber, amber800, colorizer, gray, gray400, gray700, gray800, gray900, lightBlue, lightBlue300, lime, orange, orange700, pink200, red, red700, teal, yellow400 } from './colorizers';
 
 const SLATE = StaticColor.fromHex('#66757f');
 const slate = colorizer(SLATE.hex);
@@ -75,7 +75,7 @@ export namespace terminal {
   export const debug = taggedConsoleLogger({ defaultColor: yellow400, log: console.debug });
   export const trace = taggedConsoleLogger({ defaultColor: teal, log: console.trace });
   export const todo = (() => {
-    const defaultColor = purple;
+    const defaultColor = amber;
     const log = taggedConsoleLogger({ tag: 'TODO', defaultColor, log: console.warn });
     const group = taggedConsoleLogger({ tag: 'TODO', defaultColor, log: console.group });
     const formatKey = (key: string) => gray800(`${lightBlue300(key)}:`);
