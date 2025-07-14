@@ -1,6 +1,6 @@
-import { isUndefined } from './type-checking';
-import * as UUID from 'uuid';
 import Cuid from '@paralleldrive/cuid2';
+import * as UUID from 'uuid';
+import { isString, isUndefined } from './type-checking';
 
 export const newUUID: () => string = () => UUID.v4();
 
@@ -10,10 +10,15 @@ export const cuid16 = Cuid.init({ counter: Math.random, length: 16, fingerprint:
 export const cuid24 = Cuid.init({ counter: Math.random, length: 24, fingerprint: 'salix' });
 export const cuid32 = Cuid.init({ counter: Math.random, length: 32, fingerprint: 'salix' });
 export const isCuid8 = (value: string) => Cuid.isCuid(value) && value.length === 8;
+export const isCuid8String = (value: any): value is string => isString(value) && isCuid8(value);
 export const isCuid12 = (value: string) => Cuid.isCuid(value) && value.length === 12;
+export const isCuid12String = (value: any): value is string => isString(value) && isCuid12(value);
 export const isCuid16 = (value: string) => Cuid.isCuid(value) && value.length === 16;
+export const isCuid16String = (value: any): value is string => isString(value) && isCuid16(value);
 export const isCuid24 = (value: string) => Cuid.isCuid(value) && value.length === 24;
+export const isCuid24String = (value: any): value is string => isString(value) && isCuid24(value);
 export const isCuid32 = (value: string) => Cuid.isCuid(value) && value.length === 32;
+export const isCuid32String = (value: any): value is string => isString(value) && isCuid32(value);
 
 export function makeCache<O extends object, I, F extends (object: O) => I> (compute: F): F {
   const cache = new WeakMap<object, I>();

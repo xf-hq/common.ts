@@ -1,4 +1,5 @@
 import { anyDefined, isArray, isDefined, isString } from '../../general/type-checking';
+import { binarySearch } from '../array';
 import { TemplateLiteral } from './template-literal';
 
 export const firstChar = (s: Exclude<string, ''>) => s[0];
@@ -185,21 +186,21 @@ export interface Block {
   /** Specifies something to be appended to each line when the block is serialized to a string. */
   append?: { readonly string: string; readonly skipBlocks?: boolean; readonly skipLast: boolean };
 }
-export function Block (block: Block | any[]): Block {
-  if (Block.isBlock(block)) return block;
-  if (isArray(block)) return Block.create({ lines: block });
-  return Block.create(block);
+export function Block (blockOrLines: Block | any[]): Block {
+  if (Block.isBlock(blockOrLines)) return blockOrLines;
+  if (isArray(blockOrLines)) return Block._create({ lines: blockOrLines });
+  return Block._create(blockOrLines);
 }
 export namespace Block {
   /** @internal */
-  export function create (block: Block): Block {
+  export function _create (block: Block): Block {
     block = { ...block };
-    Object.defineProperty(block, 'toString', { value: BlockToString });
+    Object.defineProperty(block, 'toString', { value: _blockToString });
     return block;
   }
   /** @internal Defines the `toString` method for `Block` objects. */
-  function BlockToString (this: Block): string { return Block.join(this); }
-  export const isBlock = (target: unknown): target is Block => target?.toString === BlockToString;
+  function _blockToString (this: Block): string { return Block.join(this); }
+  export const isBlock = (target: unknown): target is Block => target?.toString === _blockToString;
 
   export function join (block: any[] | Block | Inline, currentIndent = '', tabSize = 2): string {
     if (Inline.isInline(block)) return Inline.join(block, currentIndent, tabSize);
@@ -252,6 +253,66 @@ export namespace Block {
     }
     const result = lines.join('\n');
     return result;
+  }
+}
+
+export namespace TextBlock {
+  /**
+   * Represents a line of text within some overall string.
+   */
+  export interface Line {
+    /** The 0-based index of the line */
+    lineIndex: number;
+    /** The 0-based character index where the line begins */
+    charIndex: number;
+    /** The text of the line */
+    text: string;
+  }
+
+  /**
+   * Determines the line number of a character index within a block of text.
+   * @param rawTextOrLines The raw text or a precomputed array of lines. Use {@link getLines `getLines`} for precomputation.
+   * @returns The line index of the specified character index, or -1 if the character index is out of bounds.
+   */
+  export function lineFromCharIndex (rawTextOrLines: string | readonly Line[], charIndex: number): number {
+    const lines = isArray(rawTextOrLines) ? rawTextOrLines : getLines(rawTextOrLines);
+    return binarySearch(lineFromCharIndex_predicate, charIndex, lines);
+  }
+  function lineFromCharIndex_predicate (line: Line, indexToFind: number): number {
+    if (indexToFind < line.charIndex) return -1;
+    if (indexToFind >= line.charIndex + line.text.length) return 1;
+    return 0;
+  }
+
+  export function getLines (raw: string): Line[] {
+    const strings = raw.split('\n');
+    const lines: Line[] = [];
+    for (let i = 0, charIndex = 0; i < strings.length; i++) {
+      const text = strings[i];
+      lines.push({
+        lineIndex: i,
+        charIndex,
+        text,
+      });
+      charIndex += text.length;
+    }
+    return lines;
+  }
+
+  /**
+   * Trims leading and trailing lines that are either empty or consist only of whitespace. Leading and trailing
+   * whitespace for lines that also contain non-whitespace characters is preserved.
+   */
+  export function trimBlankLinesOnly (text: string): string {
+    const firstNonWhitespaceCharIndex = /\S/.exec(text)?.index ?? -1;
+    if (firstNonWhitespaceCharIndex === -1) return '';
+    const lastNonWhitespaceCharIndex = text.search(/\S\s*$/);
+    const newlineIndex0 = text.lastIndexOf('\n', firstNonWhitespaceCharIndex);
+    const newlineIndex1 = text.indexOf('\n', lastNonWhitespaceCharIndex);
+    return text.substring(
+      newlineIndex0 === -1 ? 0 : newlineIndex0 + 1,
+      newlineIndex1 === -1 ? text.length : newlineIndex1
+    );
   }
 }
 

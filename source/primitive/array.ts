@@ -17,6 +17,10 @@ export const elementAt = <T>(i: number, array: readonly T[]) => {
   }
   return array[i];
 };
+export const randomElement = <T>(array: readonly T[]): T => {
+  if (array.length === 0) throw new Error('Cannot select a random element from an empty array');
+  return array[(Math.random() * array.length) << 0];
+};
 
 export const arrayTake = <T>(n: number, array: readonly T[]) => array.slice(0, n);
 export const arrayTakeLast = <T>(n: number, array: readonly T[]) => array.slice(array.length - n);
@@ -146,7 +150,20 @@ export function arrayConcat<T, U> (left: T[], right: U[]): (T | U)[] {
  * @param sortedArray The array to search
  * @returns The index of a matched element, or -1 if no match is found.
  */
-export function binarySearch<T> (compare: (item: T, comparator: T, index: number, array: T[]) => number, comparator: T, sortedArray: T[]): number {
+export function binarySearch<TItem, TComparator> (
+  compare: (
+    /** An array element whose position is to be tested relative to the comparator */
+    element: TItem,
+    /** A value that the current array element is to be compared against */
+    comparator: TComparator,
+    /** The array index of the current element being tested */
+    index: number,
+    /** The full array being searched */
+    array: readonly TItem[]
+  ) => number,
+  comparator: TComparator,
+  sortedArray: readonly TItem[]
+): number {
   let left = 0, right = sortedArray.length, i = right >>> 1, found = false, done = right === 0;
   while (!done) {
     const c = compare(sortedArray[i], comparator, i, sortedArray);
@@ -158,7 +175,7 @@ export function binarySearch<T> (compare: (item: T, comparator: T, index: number
       done = true;
     }
     else {
-      if (c < 0) left = i;
+      if (c > 0) left = i;
       else right = i;
       const step = (right - left) >>> 1;
       if (left + step === i) {
