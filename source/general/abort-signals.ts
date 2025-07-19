@@ -4,7 +4,7 @@ export function createChildAbortController (upstream: AbortSignal): AbortControl
     controller.abort();
   }
   else {
-    upstream.addEventListener('abort', () => controller.abort(), { once: true });
+    upstream.addEventListener('abort', () => controller.abort(), { once: true, signal: controller.signal });
   }
   return controller;
 }

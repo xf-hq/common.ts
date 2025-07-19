@@ -1,4 +1,6 @@
+import { ObservableLatch, ObservableMasterLatch } from '../dynamic';
 import { FailSafe } from './failsafe';
+import { bindMethod } from './functional';
 import { isArray, isDefined, isFunction, isNothing, isObject, isUndefined } from './type-checking';
 
 // Polyfill
@@ -272,16 +274,19 @@ namespace Internal {
 }
 
 export abstract class SafeDisposable implements ExtendedDisposable {
+  readonly #disposal = new ObservableMasterLatch();
   #disposed = false;
 
   [Symbol.dispose] (): void {
     if (this.isNoopOnDispose) return;
     this.#disposed = true;
     this.onDispose();
+    this.#disposal.release();
   }
 
   get isNoopOnDispose () { return this.#disposed; }
   get isDisposed () { return this.#disposed; }
+  get disposal (): ObservableLatch { return this.#disposal; }
 
   protected abstract onDispose (): void;
 
@@ -301,7 +306,7 @@ export class DisposableFromFunction<A extends any[]> extends SafeDisposable {
   readonly #thisArg: any;
   readonly #args: A;
 
-  override onDispose (): void {
+  protected override onDispose (): void {
     if (this.#args.length === 0) Internal.registerAsDisposed(this.#dispose);
     this.#dispose.apply(this.#thisArg, this.#args);
   }
@@ -314,7 +319,7 @@ export class DisposableFromLegacyDisposable extends SafeDisposable {
   }
   readonly #disposable: LegacyDisposable;
 
-  override onDispose (): void {
+  protected override onDispose (): void {
     this.#disposable.dispose();
   }
 }
@@ -396,7 +401,7 @@ export class CombinedDisposable extends SafeDisposable {
     return child;
   }
 
-  override onDispose (): void {
+  protected override onDispose (): void {
     for (let i = 0; i < this.#disposables.length; ++i) {
       this.#disposables[i][Symbol.dispose]();
     }
@@ -409,7 +414,7 @@ export namespace CombinedDisposable {
       this.#parent = parent;
     }
     readonly #parent: CombinedDisposable;
-    override onDispose (): void {
+    protected override onDispose (): void {
       this.#parent.removeOnly(this);
       super.onDispose();
     }
@@ -475,7 +480,7 @@ export class IndexedDisposable extends SafeDisposable {
     disposables.length = 0;
   }
 
-  override onDispose (): void {
+  protected override onDispose (): void {
     for (let i = 0; i < this.#disposables.length; ++i) {
       this.#disposables[i][Symbol.dispose]();
     }
@@ -483,6 +488,10 @@ export class IndexedDisposable extends SafeDisposable {
 }
 
 export class DisposableGroup<K = any> extends SafeDisposable {
+  constructor () {
+    super();
+    this.add = bindMethod(this.add, this);
+  }
   private _state?: {
     map?: Map<K, LooseDisposable>;
     set?: Set<Disposable>;
@@ -498,14 +507,16 @@ export class DisposableGroup<K = any> extends SafeDisposable {
 
   get size (): number { return this._map.size; }
 
-  add (disposable: LooseDisposable): void {
+  add<T extends LooseDisposable> (target: T): T {
     if (this.isNoopOnDispose) {
-      Internal.tryDispose(disposable);
-      return;
+      Internal.tryDispose(target);
+      return target;
     }
-    disposable = Internal.disposableFrom(disposable);
-    if (isVerifiableNoopOnDispose(disposable)) return;
-    this._set.add(disposable);
+    if (!isVerifiableNoopOnDispose(target)) {
+      const disposable = Internal.disposableFrom(target);
+      this._set.add(disposable);
+    }
+    return target;
   }
 
   has (key: K): boolean {
@@ -551,7 +562,7 @@ export class DisposableGroup<K = any> extends SafeDisposable {
     return group;
   }
 
-  override onDispose (): void {
+  protected override onDispose (): void {
     if (isDefined(this._map)) {
       for (const disposable of this._map.values()) {
         tryDispose(disposable);
@@ -641,7 +652,7 @@ export class SettableDisposable extends SafeDisposable {
     return disposableFunction(this);
   }
 
-  override onDispose (): void {
+  protected override onDispose (): void {
     tryDispose(this.#disposable);
   }
 }

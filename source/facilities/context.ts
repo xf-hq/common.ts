@@ -475,7 +475,11 @@ export namespace Context {
       }
 
       /**
-       * Shortcut to `this.abort.disposables.add(disposable)`
+       * Shortcut to `context.disposables.add(disposable)` (see {@link disposables `disposables`}).
+       * @remarks
+       * For more control (such as being able to remove a disposable early, replace it with another disposable,
+       * associate disposables with keys/names, etc.) use the {@link disposables `disposables`} property directly, which
+       * is of type {@link DisposableGroup} and offers all of the aforementioned capabilities and more.
        */
       disposeOnAbort (...disposable: LooseDisposable[]): this {
         this.disposables.add(disposable);
