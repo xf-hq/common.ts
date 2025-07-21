@@ -61,6 +61,100 @@ export namespace ConsoleLogger {
   }
 }
 
+/**
+ * `LogLevel` is not enforced at this level, nor is it mandated that log levels must be respected by any given
+ * `ConsoleLogger` implementation. This union of `LogLevel` types is exposed as a convenience for other code to make
+ * use of as needed. It is up to the implementer of a given body of code to decide when and where to offer the option
+ * to specify a log level, and in doing so, to implement logic to screen logging calls accordingly.
+ */
+export type ConsoleLogLevel =
+  | ConsoleLogLevel.Debug
+  | ConsoleLogLevel.Expanded
+  | ConsoleLogLevel.Normal
+  | ConsoleLogLevel.Reduced
+  | ConsoleLogLevel.Silent
+;
+export namespace ConsoleLogLevel {
+  /**
+   * Debugging messages. These are not intended to be seen by end users, but rather to assist developers in
+   * understanding the flow of execution and the state of the application at various points.
+   */
+  export const Debug = 'debug';
+  export type Debug = typeof Debug;
+  /**
+   * More extensive logging than we'd want to see normally. Should provide more visibility into what's happening, but
+   * only to the extent that the information would make sense to whoever the log message is being presented to.
+   */
+  export const Expanded = 'expanded';
+  export type Expanded = typeof Expanded;
+
+  /**
+   * Normal logging. This is the default log level for most log messages that we'd want to see under normal
+   * circumstances.
+   */
+  export const Normal = 'normal';
+  export type Normal = typeof Normal;
+
+  /**
+   * Reduced logging. Typically this means "avoid logging except when there is something of significance to report".
+   */
+  export const Reduced = 'reduced';
+  export type Reduced = typeof Reduced;
+
+  /**
+   * No logging at all. When this log level is requested, no log messages should be printed to the console.
+   */
+  export const Silent = 'silent';
+  export type Silent = typeof Silent;
+
+  /**
+   *
+   */
+  export function evaluate (logLevel: ConsoleLogLevel): number {
+    switch (logLevel) {
+      case ConsoleLogLevel.Silent: return 0;
+      case ConsoleLogLevel.Reduced: return 1;
+      case ConsoleLogLevel.Normal: return 2;
+      case ConsoleLogLevel.Expanded: return 3;
+      case ConsoleLogLevel.Debug: return 4;
+      default: throw new Error(`Unknown log level: ${logLevel}`);
+    }
+  }
+}
+
+/**
+ * @param implementedLogLevel An implementation-defined level of significance that the implementer considers the
+ *   prospective logging operation to have.
+ * @param requestedLogLevel The requested logging level that the call site is attempting to take into account relative
+ *   to the significance it is assigning to a prospective logging operation.
+ * @returns `true` if the logging operation should proceed, or `false` if it should be skipped.
+ */
+export function shouldLog (implementedLogLevel: Exclude<ConsoleLogLevel, ConsoleLogLevel.Silent>, requestedLogLevel: ConsoleLogLevel): boolean {
+  return ConsoleLogLevel.evaluate(implementedLogLevel) <= ConsoleLogLevel.evaluate(requestedLogLevel);
+}
+/**
+ * Intended to make it easier to conditionally log messages without worrying about wasting resources on constructing
+ * intermediate references that won't actually be used.
+ * @param logger The logger to return if the logging operation should proceed.
+ * @param implementedLogLevel An implementation-defined level of significance that the implementer considers the
+ *   prospective logging operation to have.
+ * @param requestedLogLevel The requested logging level that the call site is attempting to take into account relative
+ *   to the significance it is assigning to a prospective logging operation.
+ * @returns The `logger` argument if logging should proceed, or `undefined` if it should not.
+ * @example
+ * ```ts
+ * // Nullish coalescing ensures that the expensive part of the call is never evaluated unnecessarily.
+ * maybeLog(logger, 'debug', 'normal')?.debug('Foo', { 'some object that is expensive': 'to construct' });
+ * ```
+ */
+export function maybeLog (
+  logger: ConsoleLogger,
+  implementedLogLevel: Exclude<ConsoleLogLevel, ConsoleLogLevel.Silent>,
+  requestedLogLevel: ConsoleLogLevel,
+): ConsoleLogger | undefined {
+  return shouldLog(implementedLogLevel, requestedLogLevel) ? logger : undefined;
+}
+
 export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
   get unlabelled () { return SILENT_CONSOLE_LOGGER; },
   fatal: () => {},
