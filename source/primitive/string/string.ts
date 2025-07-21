@@ -337,9 +337,11 @@ export function normalizeBlockIndent (string: string, trimTrailingWhitespace = f
   for (let i = startLine; i < lines.length; ++i) {
     let s = lines[i];
     if (trimTrailingWhitespace) s = lines[i] = s.trimEnd();
-    const match = /^(\s*)/.exec(s);
-    const indent = match![1].length;
-    if (indent !== s.length) minIndent = Math.min(minIndent, indent);
+    if (s.trim().length > 0) {
+      const match = /^(\s*)/.exec(s);
+      const indent = match![1].length;
+      if (indent !== s.length) minIndent = Math.min(minIndent, indent);
+    }
   }
   if (minIndent > 0) {
     for (let i = startLine; i < lines.length; ++i) {
