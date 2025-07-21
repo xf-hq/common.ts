@@ -316,7 +316,7 @@ export namespace TextBlock {
   }
 }
 
-export function normalizeBlockIndent (string: string, trimTrailingWhitespace = false): string[] {
+export function normalizeBlockIndent (string: string, options: BlockIndentNormalizationOptions = {}): string[] {
   // If there's a leading empty line, the first line's indent needs to be included in the calculation. If the start of
   // the actual text begins on the first line though, the first line's indent is not considered.
   let lines: string[];
@@ -324,7 +324,7 @@ export function normalizeBlockIndent (string: string, trimTrailingWhitespace = f
   const firstLineHasText = string.split(/\r?\n/, 1)[0].trim().length > 0;
   if (firstLineHasText) {
     startLine = 1;
-    lines = string.trim().split(/\r?\n/);
+    lines = string.trimStart().split(/\r?\n/);
   }
   else {
     startLine = 0;
@@ -336,8 +336,9 @@ export function normalizeBlockIndent (string: string, trimTrailingWhitespace = f
   let minIndent = string.length;
   for (let i = startLine; i < lines.length; ++i) {
     let s = lines[i];
-    if (trimTrailingWhitespace) s = lines[i] = s.trimEnd();
-    if (s.trim().length > 0) {
+    const temp = s.trimEnd();
+    if (options.trimLineEnds) s = lines[i] = temp;
+    if (temp.length > 0) {
       const match = /^(\s*)/.exec(s);
       const indent = match![1].length;
       if (indent !== s.length) minIndent = Math.min(minIndent, indent);
@@ -350,8 +351,15 @@ export function normalizeBlockIndent (string: string, trimTrailingWhitespace = f
   }
   return lines;
 }
-export function normalizeBlockIndentToString (string: string, trimTrailingWhitespace = false): string {
-  return normalizeBlockIndent(string, trimTrailingWhitespace).join('\n');
+export function normalizeBlockIndentToString (string: string, options?: BlockIndentNormalizationOptions): string {
+  return normalizeBlockIndent(string, options).join('\n');
+}
+
+export interface BlockIndentNormalizationOptions {
+  /**
+   * If true, trims the ends of each line in the block, removing trailing whitespace. Default is false.
+   */
+  trimLineEnds?: boolean;
 }
 
 /** Replaces with a single space any contiguous block of whitespace that (a) consists of zero or more spaces and exactly
