@@ -100,6 +100,9 @@ class DevtoolsConsoleLabelledLogger implements ConsoleLogger {
   divider (): void {
     cmsg.std.mc[this.#color]([this.#label, '―――――― ―――――― ―――――― ―――――― ―――――― ―――――― ―――――― ――――――']).print();
   }
+  blankLine (): void {
+    console.log('');
+  }
 }
 
 const UNLABELLED_DEVTOOLS_LOGGER: ConsoleLogger = new DevtoolsConsoleLabelledLogger(undefined);

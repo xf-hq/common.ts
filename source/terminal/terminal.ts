@@ -111,6 +111,7 @@ export namespace terminal {
   });
   export const groupEnd = console.groupEnd;
   export const divider = () => console.log(gray700('-'.repeat(80)));
+  export const blankLine = () => console.log('');
 
   export const unlabelledLogger: ConsoleLogger = {
     get unlabelled () { return unlabelledLogger; },
@@ -138,6 +139,7 @@ export namespace terminal {
     }),
     groupEnd,
     divider,
+    blankLine,
   };
 
   export const logger: ConsoleLogger.Factory = (label?: string | { readonly name: string }): ConsoleLogger => {
@@ -168,6 +170,7 @@ export namespace terminal {
       }),
       groupEnd,
       divider,
+      blankLine,
     };
     return logger;
   };

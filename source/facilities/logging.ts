@@ -36,6 +36,7 @@ export interface ConsoleLogger {
   group: ConsoleLogger.Group;
   groupEnd: () => void;
   divider: () => void;
+  blankLine: () => void;
 }
 export namespace ConsoleLogger {
   export interface Factory {
@@ -136,7 +137,7 @@ export function shouldLog (implementedLogLevel: Exclude<ConsoleLogLevel, Console
  * Intended to make it easier to conditionally log messages without worrying about wasting resources on constructing
  * intermediate references that won't actually be used.
  * @param logger The logger to return if the logging operation should proceed.
- * @param implementedLogLevel An implementation-defined level of significance that the implementer considers the
+ * @param minimumLogLevel An implementation-defined level of significance that the implementer considers the
  *   prospective logging operation to have.
  * @param requestedLogLevel The requested logging level that the call site is attempting to take into account relative
  *   to the significance it is assigning to a prospective logging operation.
@@ -149,10 +150,10 @@ export function shouldLog (implementedLogLevel: Exclude<ConsoleLogLevel, Console
  */
 export function maybeLog (
   logger: ConsoleLogger,
-  implementedLogLevel: Exclude<ConsoleLogLevel, ConsoleLogLevel.Silent>,
+  minimumLogLevel: Exclude<ConsoleLogLevel, ConsoleLogLevel.Silent>,
   requestedLogLevel: ConsoleLogLevel,
 ): ConsoleLogger | undefined {
-  return shouldLog(implementedLogLevel, requestedLogLevel) ? logger : undefined;
+  return shouldLog(minimumLogLevel, requestedLogLevel) ? logger : undefined;
 }
 
 export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
@@ -178,6 +179,7 @@ export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
   }),
   groupEnd: () => {},
   divider: () => {},
+  blankLine: () => {},
 };
 
 const DEFAULT_GROUP_END: Disposable = neverRegisterAsDisposed({
@@ -222,6 +224,7 @@ export const DEFAULT_CONSOLE_LOGGER = new class DefaultConsoleLogger implements 
     const divider = '─'.repeat(80);
     return () => console.log(divider);
   })();
+  blankLine = () => console.log('');
 };
 
 export class LabelledDefaultConsoleLogger implements ConsoleLogger {
@@ -267,4 +270,5 @@ export class LabelledDefaultConsoleLogger implements ConsoleLogger {
   });
   groupEnd = () => DEFAULT_CONSOLE_LOGGER.groupEnd();
   divider = () => DEFAULT_CONSOLE_LOGGER.divider();
+  blankLine = () => DEFAULT_CONSOLE_LOGGER.blankLine();
 }
