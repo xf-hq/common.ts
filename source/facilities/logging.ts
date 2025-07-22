@@ -4,39 +4,39 @@ export interface ConsoleLogger {
   readonly unlabelled: ConsoleLogger;
 
   /** For when we want to indicate that a process-ending event has occurred that is not necessarily the result of an error having been thrown. */
-  fatal: (message: string, ...args: any[]) => void;
+  fatal (message: string, ...args: any[]): void;
   /** Analogous to `console.error`. Prints a stack trace after the message. */
-  error: (message: string | Error, ...args: any[]) => void;
+  error (message: string | Error, ...args: any[]): void;
   /** For when we want a non-error message to be presented with similar prominence to an error message. */
-  critical: (message: string, ...args: any[]) => void;
+  critical (message: string, ...args: any[]): void;
   /** More severe than `warn` but less severe than `critical` or `error`. If differentiation is not required, treat this as an alias for `critical`. */
-  problem: (message: string, ...args: any[]) => void;
+  problem (message: string, ...args: any[]): void;
   /** For when we want to present a message indicating that significant work is being performed that will most likely have a noteworthy effect on persistent state. */
-  working: (message: string, ...args: any[]) => void;
+  working (message: string, ...args: any[]): void;
   /** For when we want to present an informational message that indicates a positive outcome of some kind. */
-  good: (message: string, ...args: any[]) => void;
+  good (message: string, ...args: any[]): void;
   /** Some log level as `info`, but displayed in a subdued style. */
-  boring: (message: string, ...args: any[]) => void;
-  /** For messages */
-  info: (message: string, ...args: any[]) => void;
+  boring (message: string, ...args: any[]): void;
+  /** For informative messages that should be displayed under normal circumstances. */
+  info (message: string, ...args: any[]): void;
   /** Equivalent role to `console.log`. In most cases other logger methods should be preferred over this one. */
-  default: (message: string, ...args: any[]) => void;
+  default (message: string, ...args: any[]): void;
   /** For messages that provide details that typically don't warrant user attention, but which are not merely intended to assist with debugging. */
-  verbose: (message: string, ...args: any[]) => void;
+  verbose (message: string, ...args: any[]): void;
   /** For temporary messages intended to assist with debugging. */
-  debug: (message: string, ...args: any[]) => void;
+  debug (message: string, ...args: any[]): void;
   /** Analogous to `console.warn`. */
-  warn: (message: string, ...args: any[]) => void;
+  warn (message: string, ...args: any[]): void;
   /** Analogous to `console.trace`. Prints a stack trace after the message. */
-  trace: (message: string, ...args: any[]) => void;
+  trace (message: string, ...args: any[]): void;
   /** For messages intended to indicate that some part of the implementation is incomplete. */
-  todo: (message: string, fields?: SRecord) => void;
+  todo (message: string, fields?: SRecord): void;
   /** For printing an object to the console. */
-  object: (value: any) => void;
+  object (value: any): void;
   group: ConsoleLogger.Group;
-  groupEnd: () => void;
-  divider: () => void;
-  blankLine: () => void;
+  groupEnd (): void;
+  divider (): void;
+  blankLine (): void;
 }
 export namespace ConsoleLogger {
   export interface Factory {
@@ -164,10 +164,13 @@ export function maybeLogWith (
   logger: ConsoleLogger,
   minimumLogLevel: Exclude<ConsoleLogLevel, ConsoleLogLevel.Silent>,
   requestedLogLevel: ConsoleLogLevel,
-): undefined | ((doLogging: (logger: ConsoleLogger) => void) => void) {
+): undefined | {
+  (doLogging: (logger: ConsoleLogger) => Promise<void>): Promise<void>;
+  (doLogging: (logger: ConsoleLogger) => void): void;
+} {
   if (shouldLog(minimumLogLevel, requestedLogLevel)) {
-    return (doLogging: (logger: ConsoleLogger) => void) => {
-      doLogging(logger);
+    return (doLogging: (logger: ConsoleLogger) => any) => {
+      return doLogging(logger);
     };
   }
 }
