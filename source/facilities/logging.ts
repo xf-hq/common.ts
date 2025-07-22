@@ -156,6 +156,18 @@ export function maybeLog (
   return shouldLog(minimumLogLevel, requestedLogLevel) ? logger : undefined;
 }
 
+export function maybeLogWith (
+  logger: ConsoleLogger,
+  minimumLogLevel: Exclude<ConsoleLogLevel, ConsoleLogLevel.Silent>,
+  requestedLogLevel: ConsoleLogLevel,
+): undefined | ((doLogging: (logger: ConsoleLogger) => void) => void) {
+  if (shouldLog(minimumLogLevel, requestedLogLevel)) {
+    return (doLogging: (logger: ConsoleLogger) => void) => {
+      doLogging(logger);
+    };
+  }
+}
+
 export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
   get unlabelled () { return SILENT_CONSOLE_LOGGER; },
   fatal: () => {},
