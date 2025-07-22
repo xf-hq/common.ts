@@ -131,7 +131,12 @@ export namespace terminal {
     todo: (message: string, fields?: SRecord) => todo(null, message, fields),
     object (value) { console.dir(value); },
     group: ConsoleLogger.Group((message: string, ...args: any[]) => group(null, message, ...args), {
-      warn: (message: string, ...args: any[]) => group.warn(null, message, ...args),
+      warn: ConsoleLogger.Group.Warn((message: string, ...args: any[]) => group.warn(null, message, ...args), {
+        endOnDispose: (message: string, ...args: any[]) => {
+          group.warn(null, message, ...args);
+          return GROUP_END;
+        },
+      }),
       endOnDispose: (message: string, ...args: any[]) => {
         group(null, message, ...args);
         return GROUP_END;
@@ -162,7 +167,12 @@ export namespace terminal {
       todo: (message: string, fields?: SRecord) => todo(getLabel(), message, fields),
       object: (value: any) => console.dir(value, { depth: null }),
       group: ConsoleLogger.Group((message: string, ...args: any[]) => group(getLabel(), message, ...args), {
-        warn: (message: string, ...args: any[]) => group.warn(getLabel(), message, ...args),
+        warn: ConsoleLogger.Group.Warn((message: string, ...args: any[]) => group.warn(getLabel(), message, ...args), {
+          endOnDispose: (message: string, ...args: any[]) => {
+            group.warn(getLabel(), message, ...args);
+            return GROUP_END;
+          },
+        }),
         endOnDispose: (message: string, ...args: any[]) => {
           group(getLabel(), message, ...args);
           return GROUP_END;

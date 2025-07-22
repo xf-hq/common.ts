@@ -84,14 +84,22 @@ class DevtoolsConsoleLabelledLogger implements ConsoleLogger {
   group = ConsoleLogger.Group((message: string, ...args: any[]) => {
     cmsg([this.#label, message]).args(...args).setMode('group').beginPrint();
   }, {
-    warn (message, ...args) {
-      cmsg([this.#label, cmsg.std.mc.yellow(['⚠️ ', message])]).args(...args).setMode('group').collapseGroup().beginPrint();
-    },
+    warn: (() => {
+      const printGroupStart = (message: string, ...args: any[]) => {
+        return cmsg([this.#label, cmsg.std.mc.yellow(['⚠️ ', message])]).args(...args).setMode('group').collapseGroup();
+      };
+      return ConsoleLogger.Group.Warn((message: string, ...args: any[]) => {
+        printGroupStart(message, ...args).beginPrint();
+      }, {
+        endOnDispose: (message: string, ...args: any[]) => {
+          const msg = printGroupStart(message, ...args).beginPrint();
+          return { [Symbol.dispose]: () => msg.endPrint() };
+        },
+      });
+    })(),
     endOnDispose (message, ...args) {
       const msg = cmsg([this.#label, message]).args(...args).setMode('group').beginPrint();
-      return {
-        [Symbol.dispose]: () => msg.endPrint(),
-      };
+      return { [Symbol.dispose]: () => msg.endPrint() };
     },
   });
   groupEnd (): void {

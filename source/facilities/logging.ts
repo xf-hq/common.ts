@@ -56,8 +56,12 @@ export namespace ConsoleLogger {
       (message: string, ...args: any[]): void;
     }
     export interface Props {
-      warn: (message: string, ...args: any[]) => void;
+      warn: Warn;
       endOnDispose: (message: string, ...args: any[]) => Disposable;
+    }
+    export interface Warn extends Func, Omit<Props, 'warn'> {}
+    export function Warn (func: Group.Func, props: Omit<Props, 'warn'>) {
+      return Object.assign(func, props);
     }
   }
 }
@@ -186,7 +190,9 @@ export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
   todo: () => {},
   object: () => {},
   group: ConsoleLogger.Group(() => {}, {
-    warn: () => {},
+    warn: ConsoleLogger.Group.Warn(() => {}, {
+      endOnDispose: () => noopDispose,
+    }),
     endOnDispose: () => noopDispose,
   }),
   groupEnd: () => {},
@@ -197,7 +203,7 @@ export const SILENT_CONSOLE_LOGGER: ConsoleLogger = {
 const DEFAULT_GROUP_END: Disposable = neverRegisterAsDisposed({
   [Symbol.dispose] () { console.groupEnd(); },
 });
-export const DEFAULT_CONSOLE_LOGGER = new class DefaultConsoleLogger implements ConsoleLogger {
+export const DEFAULT_CONSOLE_LOGGER: ConsoleLogger = new class DefaultConsoleLogger implements ConsoleLogger {
   get unlabelled () { return this; }
   fatal = console.error;
   error = console.error;
@@ -221,9 +227,14 @@ export const DEFAULT_CONSOLE_LOGGER = new class DefaultConsoleLogger implements 
   group = ConsoleLogger.Group((message: string, ...args: any[]) => {
     console.group(message, ...args);
   }, {
-    warn: (message: string, ...args: any[]) => {
+    warn: ConsoleLogger.Group.Warn((message: string, ...args: any[]) => {
       console.groupCollapsed(`⚠️ ${message}`, ...args);
-    },
+    }, {
+      endOnDispose () {
+        DEFAULT_CONSOLE_LOGGER.warn.apply(null, arguments);
+        return DEFAULT_GROUP_END;
+      },
+    }),
     endOnDispose: (message: string, ...args: any[]) => {
       console.group(message, ...args);
       return DEFAULT_GROUP_END;
@@ -273,9 +284,13 @@ export class LabelledDefaultConsoleLogger implements ConsoleLogger {
   group = ConsoleLogger.Group((message: string, ...args: any[]) => {
     DEFAULT_CONSOLE_LOGGER.group(`[${this.label}] ${message}`, ...args);
   }, {
-    warn: (message: string, ...args: any[]) => {
+    warn: ConsoleLogger.Group.Warn((message: string, ...args: any[]) => {
       DEFAULT_CONSOLE_LOGGER.group.warn(`[${this.label}] ⚠️ ${message}`, ...args);
-    },
+    }, {
+      endOnDispose: (message: string, ...args: any[]) => {
+        return DEFAULT_CONSOLE_LOGGER.group.warn.endOnDispose(`[${this.label}] ⚠️ ${message}`, ...args);
+      },
+    }),
     endOnDispose: (message: string, ...args: any[]) => {
       return DEFAULT_CONSOLE_LOGGER.group.endOnDispose(`[${this.label}] ${message}`, ...args);
     },
