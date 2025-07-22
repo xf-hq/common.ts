@@ -274,19 +274,21 @@ namespace Internal {
 }
 
 export abstract class SafeDisposable implements ExtendedDisposable {
-  readonly #disposal = new ObservableMasterLatch();
+  #disposal: ObservableMasterLatch;
   #disposed = false;
 
   [Symbol.dispose] (): void {
     if (this.isNoopOnDispose) return;
     this.#disposed = true;
     this.onDispose();
-    this.#disposal.release();
+    this._disposal.release();
   }
+
+  private get _disposal (): ObservableMasterLatch { return this.#disposal ??= new ObservableMasterLatch(); }
 
   get isNoopOnDispose () { return this.#disposed; }
   get isDisposed () { return this.#disposed; }
-  get disposal (): ObservableLatch { return this.#disposal; }
+  get disposal (): ObservableLatch { return this._disposal; }
 
   protected abstract onDispose (): void;
 
@@ -576,6 +578,9 @@ export class DisposableGroup<K = any> extends SafeDisposable {
     this._map.clear();
   }
 }
+
+type SYMBOL_DISPOSE = typeof Symbol.dispose;
+export interface NonOwnedDisposableGroup extends Omit<DisposableGroup, SYMBOL_DISPOSE | 'toFunction'> {}
 
 export class SettableDisposable extends SafeDisposable {
   static create (f: (disposable: SettableDisposable) => LooseDisposable): SettableDisposable {
