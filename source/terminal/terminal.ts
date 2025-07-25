@@ -126,8 +126,8 @@ export namespace terminal {
     default: (message: string, ...args: any[]) => log(null, message, ...args),
     verbose: (message: string, ...args: any[]) => verbose(null, message, ...args),
     debug: (message: string, ...args: any[]) => debug(null, message, ...args),
-    warn,
-    trace,
+    warn: (message: string, ...args: any[]) => warn(null, message, ...args),
+    trace: (message: string, ...args: any[]) => trace(null, message, ...args),
     todo: (message: string, fields?: SRecord) => todo(null, message, fields),
     object (value) { console.dir(value); },
     group: ConsoleLogger.Group((message: string, ...args: any[]) => group(null, message, ...args), {

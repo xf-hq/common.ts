@@ -497,6 +497,7 @@ export class DisposableGroup<K = any> extends SafeDisposable {
   private _state?: {
     map?: Map<K, LooseDisposable>;
     set?: Set<Disposable>;
+    add_bound?: DisposableGroup['add'];
   };
   private get _map (): Map<K, LooseDisposable> {
     const state = this._state ??= {};
@@ -508,6 +509,15 @@ export class DisposableGroup<K = any> extends SafeDisposable {
   }
 
   get size (): number { return this._map.size; }
+
+  /**
+   * Returns a function that invokes `this.add` when called. The function is prebound to this `DisposableGroup` instance
+   * and can therefore be freely shared and referenced on its own.
+   */
+  get add_bound (): DisposableGroup['add'] {
+    const state = this._state ??= {};
+    return state.add_bound ??= bindMethod(this.add, this);
+  }
 
   add<T extends LooseDisposable> (target: T): T {
     if (this.isNoopOnDispose) {

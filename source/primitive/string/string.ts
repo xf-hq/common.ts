@@ -370,22 +370,28 @@ export function collapseSingleLineBreaks (string: string): string {
 
 const measureIndent = (line: string) => line.match(/^(\s*)/)![1].length;
 const encodeLineDefault = (line: any) => line;
-const encodeBlockDefault = (lines: any[]): any => lines;
-const appendLineDefault = <T>(sources: T[], next: T) => sources.push(next);
 
+export interface TextTree {
+  text: string;
+  inner: TextTree[] | null;
+}
 export function splitToNestedBlocks (block: string): any[];
-export function splitToNestedBlocks<T> (block: string, encodeLine?: (line: string) => T, encodeBlock?: (lines: T[]) => T, appendLine?: (lines: T[], line: T) => void): T[];
-export function splitToNestedBlocks<T> (
-  block: string,
-  encodeLine: (line: string) => T = encodeLineDefault,
-  encodeBlock: (lines: T[]) => T = encodeBlockDefault,
-  appendLine: (lines: T[], line: T) => void = appendLineDefault,
-): T[] {
-  const rawLines = block.split('\n');
+export function splitToNestedBlocks (block: string, encodeLine?: (line: string) => string): TextTree[];
+export function splitToNestedBlocks (
+  sourceText: string,
+  encodeLine: (line: string) => string = encodeLineDefault,
+): TextTree[] {
+  const rawLines = sourceText.split('\n');
   const baseIndent = measureIndent(rawLines[0]);
-  const stack: [number, T[]][] = [];
+  const stack: [number, TextTree[]][] = [];
   let currentIndent = 0;
-  let output: T[] = [];
+  let output: TextTree[] = [];
+  const popStack = () => {
+    const innerOutput = output;
+    [currentIndent, output] = stack.pop()!;
+    const previous = output[output.length - 1];
+    previous.inner = innerOutput;
+  };
   for (let i = 0; i < rawLines.length; ++i) {
     const rawLine = rawLines[i];
     const lineIndent = measureIndent(rawLine) - baseIndent;
@@ -393,7 +399,7 @@ export function splitToNestedBlocks<T> (
     if (lineIndent > currentIndent) {
       stack.push([currentIndent, output]);
       currentIndent = lineIndent;
-      output = [encodedLine];
+      output = [];
     }
     else {
       let TEMP = 0;
@@ -402,15 +408,16 @@ export function splitToNestedBlocks<T> (
           throw new Error(`Infinite cycle detected`);
         }
         if (lineIndent < baseIndent) {
-          console.warn(block);
+          console.warn(sourceText);
           throw new Error(`Poorly-formatted code block cannot be safely split to nested blocks`);
         }
-        const innerOutput = encodeBlock(output);
-        [currentIndent, output] = stack.pop()!;
-        appendLine(output, innerOutput);
+        popStack();
       }
-      appendLine(output, encodedLine);
     }
+    output.push({ text: encodedLine, inner: null });
+  }
+  while (stack.length > 0) {
+    popStack();
   }
   return output;
 }

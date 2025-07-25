@@ -27,6 +27,11 @@ export function combineAbortControllers (...controllers: AbortController[]): Abo
   return combinedController;
 }
 
+export function onAbort (abortSignal: AbortSignal, listener: () => void, listenerAbortSignal?: AbortSignal): void {
+  if (abortSignal.aborted) return listener();
+  abortSignal.addEventListener('abort', listener, listenerAbortSignal ? { signal: listenerAbortSignal, once: true } : { once: true });
+}
+
 /**
  * Triggers an abort signal when the last attached signal is detached. When an abort event is received for an attached
  * signal, the internal response is to detach it the same way that it would be detached manually. Regardless of whether
