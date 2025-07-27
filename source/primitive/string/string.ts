@@ -192,6 +192,8 @@ export function Block (blockOrLines: Block | any[]): Block {
   return Block._create(blockOrLines);
 }
 export namespace Block {
+  export const Partial = (lines: any[]): Block => _create({ lines, partial: true });
+
   /** @internal */
   export function _create (block: Block): Block {
     block = { ...block };
@@ -274,11 +276,11 @@ export namespace TextBlock {
    * @param rawTextOrLines The raw text or a precomputed array of lines. Use {@link getLines `getLines`} for precomputation.
    * @returns The line index of the specified character index, or -1 if the character index is out of bounds.
    */
-  export function lineFromCharIndex (rawTextOrLines: string | readonly Line[], charIndex: number): number {
+  export function charIndexToLineNumber (rawTextOrLines: string | readonly Line[], charIndex: number): number {
     const lines = isArray(rawTextOrLines) ? rawTextOrLines : getLines(rawTextOrLines);
-    return binarySearch(lineFromCharIndex_predicate, charIndex, lines);
+    return binarySearch(charIndexToLineNumber_binarySearch_testLine, charIndex, lines);
   }
-  function lineFromCharIndex_predicate (line: Line, indexToFind: number): number {
+  function charIndexToLineNumber_binarySearch_testLine (line: Line, indexToFind: number): number {
     if (indexToFind < line.charIndex) return -1;
     if (indexToFind >= line.charIndex + line.text.length) return 1;
     return 0;

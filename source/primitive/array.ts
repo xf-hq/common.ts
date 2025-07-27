@@ -142,19 +142,19 @@ export function arrayConcat<T, U> (left: T[], right: U[]): (T | U)[] {
 }
 
 /**
- * @param compare Takes an array element, a comparator reference, and returns an integer. A negative number indicates
- * that the comparator has a lower ordinal position than the current array item. A positive number indicates the
- * opposite. Zero indicates an identity match. If found for a value that exists alongside several duplicates of itself,
- * the index returned is always the left-most index among each of the duplicates.
- * @param comparator A value to pass to the `compare` function for each array element being tested.
+ * @param test Takes an array element, a comparator reference, and returns an integer. A negative number indicates that
+ * the comparator has a lower ordinal position than the current array item. A positive number indicates the opposite.
+ * Zero indicates an identity match. If found for a value that exists alongside several duplicates of itself, the index
+ * returned is always the left-most index among each of the duplicates.
+ * @param comparator A value to pass to the `test` function for each array element being tested.
  * @param sortedArray The array to search
  * @returns The index of a matched element, or -1 if no match is found.
  */
 export function binarySearch<TItem, TComparator> (
-  compare: (
+  test: (
     /** An array element whose position is to be tested relative to the comparator */
     element: TItem,
-    /** A value that the current array element is to be compared against */
+    /** A value that the current array element is to be compared with */
     comparator: TComparator,
     /** The array index of the current element being tested */
     index: number,
@@ -166,9 +166,9 @@ export function binarySearch<TItem, TComparator> (
 ): number {
   let left = 0, right = sortedArray.length, i = right >>> 1, found = false, done = right === 0;
   while (!done) {
-    const c = compare(sortedArray[i], comparator, i, sortedArray);
+    const c = test(sortedArray[i], comparator, i, sortedArray);
     if (c === 0) {
-      if (i > left) while (compare(sortedArray[i - 1], comparator, i - 1, sortedArray) === 0) {
+      if (i > left) while (test(sortedArray[i - 1], comparator, i - 1, sortedArray) === 0) {
         --i;
       }
       found = true;
