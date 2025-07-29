@@ -221,16 +221,22 @@ namespace Internal {
     return isVerifiableNoopOnDispose(disposalTarget) ? noopDispose : createIdempotentDisposeFunction(disposalTarget);
   }
 
-  export function createIdempotentDisposeFunction (disposable: Dispose | Disposable | LegacyDisposable): Dispose {
+  export function createIdempotentDisposeFunction (disposable: Dispose | Disposable | LegacyDisposable): DisposeOrWaitForAbort {
     if (isFunction(disposable) && _idempotentDisposeFunctions.has(disposable)) return disposable;
-    let disposed = false;
-    const dispose = () => {
-      if (disposed) return;
-      disposed = true;
-      tryDispose(disposable);
-    };
+    const disposed: IsDisposed = { value: false };
+    const dispose = (abortSignal?: AbortSignal) => _disposeIdempotent(disposed, disposable, abortSignal);
     _idempotentDisposeFunctions.add(dispose);
     return dispose;
+  }
+  type IsDisposed = { value: boolean };
+  function _disposeIdempotent (disposed: IsDisposed, disposable: Dispose | Disposable | LegacyDisposable, abortSignal?: AbortSignal): void {
+    if (disposed.value) return;
+    if (abortSignal && !abortSignal.aborted) {
+      abortSignal.addEventListener('abort', () => _disposeIdempotent(disposed, disposable), { once: true });
+      return;
+    }
+    disposed.value = true;
+    tryDispose(disposable);
   }
 
   export function disposableFrom (target: LooseDisposable): Disposable {

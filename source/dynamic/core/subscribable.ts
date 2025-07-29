@@ -1,4 +1,4 @@
-import { disposableFunction, disposeOnAbort } from '../../general/disposables';
+import { disposableFunction, dispose, disposeOnAbort, isDisposable, isLegacyDisposable } from '../../general/disposables';
 import { bindMethod } from '../../general/functional';
 import { isDefined, isFunction } from '../../general/type-checking';
 import { firstElement } from '../../primitive';
@@ -25,7 +25,7 @@ export namespace Subscribable {
     disposeOnAbort(abortSignal, disposable);
   }
 
-  export class Controller<TEventArgs extends unknown[] = unknown[]> implements Subscribable<TEventArgs>, DemandStatus {
+  export class Controller<TEventArgs extends unknown[] = []> implements Subscribable<TEventArgs>, DemandStatus {
     constructor (onDemandChanged?: DemandObserver<TEventArgs>) {
       this.#onDemandChanged = onDemandChanged;
     }
@@ -430,5 +430,104 @@ export namespace Subscribable {
     constructor (protected readonly handlers: { online (): void; offline (): void }) {}
     online () { if (this.#refCount++ === 0) this.handlers.online(); }
     offline () { if (--this.#refCount === 0) this.handlers.offline(); }
+  }
+
+  /**
+   * A super convenient way to define on-demand subscribable sources that can then be constructed as needed.
+   *
+   * Example with a driver object with its own cleanup logic:
+   * ```ts
+   * const OnClickLocation = Subscribable.OnDemand({
+   *   // We are in an OFFLINE state when there are no subscribers. When someone subscribes to an offline source, we
+   *   // transition to an ONLINE state, at which point the `online` handler is called.
+   *   online: (out: Subscribable.Controller<[x: number, y: number]>, element: HTMLElement) => {
+   *     const listener = (event: MouseEvent) => out.event(event.clientX, event.clientY);
+   *     element.addEventListener('mousemove', listener);
+   *     // Whatever you return here will be passed to the `offline` handler when the source is no longer in demand:
+   *     return listener;
+   *   },
+   *   // We are in an ONLINE state while there is at least one active subscriber. We transition back to an OFFLINE
+   *   // state when the last active subscriber disposes their subscription, which triggers a call to the `offline`
+   *   // handler, putting the source back in its original OFFLINE state, ready for a new subscriber to come along.
+   *   offline: (listener: (event: MouseEvent) => void, element: HTMLElement) => {
+   *     element.removeEventListener('mousemove', listener);
+   *   }
+   * });
+   * const mySource = OnClickLocation(myElement);
+   * mySource.subscribe((x, y) => { doSomethingWithCoordinates(x, y); });
+   * ```
+   *
+   * Return a `Disposable` and it will be disposed automatically if no `offline` handler is provided:
+   * ```ts
+   * import { disposableFrom } from '@xf-common/general/disposables';
+   * const OnSelectEntity = Subscribable.OnDemand({
+   *   online: (out: Subscribable.Controller<[id: string]>, element: HTMLElement, id: string) => {
+   *     const listener = () => out.event(id);
+   *     element.addEventListener('click', listener);
+   *     return disposableFrom(() => element.removeEventListener('click', listener));
+   *   },
+   * });
+   * ```
+   *
+   * The implementation also supports returning an `AbortController` (again, omit the `offline` handler):
+   * ```ts
+   * const OnSelectEntity = Subscribable.OnDemand({
+   *   online: (out: Subscribable.Controller<[id: string]>, element: HTMLElement, id: string) => {
+   *     const abortController = new AbortController();
+   *     element.addEventListener('click', listener = () => out.event(id), { signal: abortController.signal });
+   *     return abortController;
+   *   },
+   * });
+   * ```
+   *
+   * If there's no `offline` handler, you can optionally just pass a function that will be used as the `online` handler:
+   * ```ts
+   * const OnSelectEntity = Subscribable.OnDemand(
+   *   (out: Subscribable.Controller<[id: string]>, context: DOMContext, id: string) => context.onClickOrTap(() => out.event(id))
+   * );
+   * ```
+   *
+   */
+  export function OnDemand<TEventArgs extends unknown[], TSelfArgs extends unknown[]> (online: OnDemand.Driver<TEventArgs, TSelfArgs, Disposable | AbortController>['online']): OnDemand<TEventArgs, TSelfArgs>;
+  export function OnDemand<TEventArgs extends unknown[], TSelfArgs extends unknown[], TState> (driver: OnDemand.Driver<TEventArgs, TSelfArgs, TState>): OnDemand<TEventArgs, TSelfArgs>;
+  export function OnDemand<TEventArgs extends unknown[], TSelfArgs extends unknown[], TState> (driver: OnDemand.Driver<TEventArgs, TSelfArgs, TState> | OnDemand.Driver<TEventArgs, TSelfArgs, TState>['online']): OnDemand<TEventArgs, TSelfArgs> {
+    if (isFunction(driver)) driver = { online: driver };
+    return (...args) => OnDemand.create(driver, ...args);
+  }
+  export type OnDemand<TEventArgs extends unknown[], TSelfArgs extends unknown[]> = (...args: TSelfArgs) => Subscribable<TEventArgs>;
+  export namespace OnDemand {
+    export function create<TEventArgs extends unknown[], TSelfArgs extends unknown[], TState> (driver: Driver<TEventArgs, TSelfArgs, TState>, ...args: TSelfArgs): Subscribable<TEventArgs> {
+      return new Controller(new DemandObserver(driver, args));
+    }
+    export interface Driver<TEventArgs extends unknown[], TSelfArgs extends unknown[], TState> {
+      online (out: Controller<TEventArgs>, ...args: TSelfArgs): TState;
+      offline? (state: TState, ...args: TSelfArgs): void;
+    }
+    export const DemandObserver = class OnDemand_DemandObserver<TEventArgs extends unknown[], TSelfArgs extends unknown[], TState> implements DemandObserver.ListenerInterface<TEventArgs> {
+      constructor (
+        private readonly driver: Driver<TEventArgs, TSelfArgs, TState>,
+        private readonly args: TSelfArgs,
+      ) {}
+      #state: TState | undefined;
+      online (out: Controller<TEventArgs>) {
+        this.#state = this.driver.online(out, ...this.args);
+      }
+      offline () {
+        const driver = this.driver;
+        if (isDefined(driver.offline)) {
+          driver.offline(this.#state!, ...this.args);
+        }
+        else if (this.#state instanceof AbortController) {
+          this.#state.abort();
+        }
+        else if (isDisposable(this.#state)) {
+          dispose(this.#state);
+        }
+        else if (isLegacyDisposable(this.#state)) {
+          this.#state.dispose();
+        }
+        this.#state = undefined;
+      }
+    };
   }
 }

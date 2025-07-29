@@ -203,7 +203,8 @@ declare type IsExplicitUnknown<T> = IsExplicitAny<T> extends true ? false : unkn
 declare type IsExplicitAnyOrUnknown<T> = IsExplicitAny<T> extends true ? true : unknown extends T ? true : false; // Useful when we need a conditional type that safely deals with explicitly-known types
 
 declare type Dispose = () => void;
-declare type DisposableFunction = Dispose & ExtendedDisposable;
+declare type DisposeOrWaitForAbort = (abortSignal?: AbortSignal) => void;
+declare type DisposableFunction = DisposeOrWaitForAbort & ExtendedDisposable;
 declare type LooseDisposable = Nothing | Disposable | LegacyDisposable | ExtendedDisposable | Dispose | LooseDisposable[];
 declare namespace LooseDisposable {
   type Factory<A extends any[]> = (...args: A) => LooseDisposable;
