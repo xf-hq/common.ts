@@ -65,10 +65,14 @@ export function debounce<A extends any[]> (f: (...args: A) => void, interval: nu
  * function).
  *
  * Note that this `throttle` implementation is a little better than a typical throttling function; in this
- * implementation the most recent call is always guaranteed to run (unless the timer is manually cancelled), and that
- * the most recent arguments passed to the returned function will always be used, even if the most recent call was
- * prevented by the throttling logic. */
-export function throttle<A extends any[]> (f: (...args: A) => void, minIntervalBetweenCalls: number) {
+ * implementation, if `guaranteeMostRecentCall` is `true` (which it defaults to if omitted) the most recent call is
+ * always guaranteed to run (unless the timer is manually cancelled), and that the most recent arguments passed to the
+ * returned function will always be used, even if the most recent call was prevented by the throttling logic. */
+export function throttle<A extends any[]> (
+  f: (...args: A) => void,
+  minIntervalBetweenCalls: number,
+  guaranteeMostRecentCall = true,
+) {
   let timerHandle: TimerHandle | undefined, earliestTimestampAllowedForNextCall = 0;
   let argsToUse: A;
   function callback () {
@@ -84,14 +88,14 @@ export function throttle<A extends any[]> (f: (...args: A) => void, minIntervalB
   };
   return (...args: A) => {
     argsToUse = args;
-    if (isUndefined(timerHandle)) {
+    if (isUndefined(timerHandle) || !guaranteeMostRecentCall) {
       const currentTimestamp = Date.now();
-      if (currentTimestamp < earliestTimestampAllowedForNextCall) {
-        timerHandle = FailSafe.setTimeout(callback, earliestTimestampAllowedForNextCall - currentTimestamp);
-      }
-      else {
+      if (currentTimestamp >= earliestTimestampAllowedForNextCall) {
         earliestTimestampAllowedForNextCall = currentTimestamp;
         FailSafe.emit(callback);
+      }
+      else if (guaranteeMostRecentCall) {
+        timerHandle = FailSafe.setTimeout(callback, earliestTimestampAllowedForNextCall - currentTimestamp);
       }
     }
     return cancel;
