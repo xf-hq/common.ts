@@ -410,6 +410,13 @@ export namespace Context {
     return type as TInterfaceType;
   }
 
+  export function create (): Context;
+  export function create<TContext extends Context> (interfaceType: ImmediateContext.InterfaceType.OrNS<TContext>): TContext;
+  export function create (interfaceTypeOrNS?: ImmediateContext.InterfaceType.OrNS) {
+    const interfaceType = isUndefined(interfaceTypeOrNS) ? ImmediateContext.InterfaceType : unboxInterfaceType(interfaceTypeOrNS);
+    return interfaceType.construct(Sentinel());
+  }
+
   /**
    * `ImmediateContext` is the base implementation of an API layer designed to allow execution pathways to query and
    * extend the context graph so as to make sure that subcontextual processes have visibility of the full context of
@@ -424,11 +431,6 @@ export namespace Context {
 
     export function create (binding: ContextBinding): ImmediateContext {
       return Class.construct(InterfaceType, [binding]);
-    }
-    export function createSentinel (): ImmediateContext;
-    export function createSentinel<TContext extends ImmediateContext> (interfaceType: Compositional.InterfaceType.From<Class, TContext>): TContext;
-    export function createSentinel (interfaceType: Compositional.EntityClass.ToInterfaceType<any, typeof Class> = InterfaceType) {
-      return interfaceType.construct(Sentinel());
     }
 
     export type Class = typeof Class;
