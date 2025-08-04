@@ -2,10 +2,56 @@ import * as Immutable from 'immutable';
 import type { cmsg } from '../browser/console/console-message';
 import { DisposableGroup, dispose } from '../general/disposables';
 import { throwError } from '../general/errors';
-import { isDefined, isFunction, isNonClassFunction, isNotNull, isNull, isObject, isUndefined } from '../general/type-checking';
+import { FnCT } from '../general/factories-and-latebinding';
+import { isDefined, isFunction, isNonClassFunction, isNotNull, isNull, isObject, isString, isUndefined } from '../general/type-checking';
 import { inls } from '../primitive';
 import { Compositional } from './compositional/compositional';
 
+/**
+ * To construct a new root context:
+ *
+ * ```ts
+ * import { Context } from '@xf-common/facilities/context';
+ *
+ * const context = Context.create();
+ * ```
+ *
+ * Or if you want to use your own domain-specific context interface type:
+ *
+ * ```ts
+ * // my-custom-context.ts
+ *
+ * import { Compositional } from '@xf-common/facilities/compositional/compositional';
+ * import { Context } from '@xf-common/facilities/context';
+ *
+ * // Define your context interface:
+ * export interface MyCustomContext extends Compositional.ExtractInterface<typeof MyCustomContext.InterfaceType> {}
+ * export namespace MyCustomContext {
+ *   // Optionally export a function to make it easy to define other context interfaces that extend this one:
+ *   export function extend<TCallback extends Compositional.Define.Callback<MyCustomContext, MyCustomContext, Context.Immediate.Class.Env, Context.Immediate.Class.CtorArgs>> (callback: TCallback) {
+ *     return InterfaceType.extend(callback);
+ *   }
+ *   export type InterfaceType = typeof InterfaceType;
+ *   export const InterfaceType = Context.defineInterface(($Base) => {
+ *     return class MyCustomContext extends $Base.EntityInstance {
+ *       // `<TContext extends MyCustomContext>` isn't technically always applicable, but can be helpful in some cases
+ *       // where TypeScript gets confused about the type of `this` in a method. As the details around this can be easy
+ *       // to forget, I have adopted the practice of simply including it on most methods as a convention. It doesn't
+ *       // hurt, and often helps.
+ *       hello<TContext extends MyCustomContext>(this: TContext, who: 'world'): TContext {
+ *         return this;
+ *       }
+ *     };
+ *   });
+ * }
+ *
+ * // elsewhere.ts:
+ * import { Context } from '@xf-common/facilities/context';
+ * import { MyCustomContext } from './my-custom-context';
+ *
+ * const context = Context.create(MyCustomContext);
+ * ```
+ */
 export type Context = Context.Immediate;
 /**
  * A base implementation of a context class minus anything specific to any particular graph or system implementation.
@@ -39,6 +85,14 @@ export type Context = Context.Immediate;
  * implementation, opportunities to link bindings to something explaining their purpose start to reveal themselves.
  */
 export namespace Context {
+  export function create (): Context;
+  export function create<TContext extends Context> (interfaceType: ImmediateContext.InterfaceType.OrNS<TContext>, basis?: Context): TContext;
+  export function create (interfaceTypeOrNS?: ImmediateContext.InterfaceType.OrNS, basis?: Context): Context {
+    if (isUndefined(interfaceTypeOrNS)) return ImmediateContext.create(Sentinel());
+    const interfaceType = unboxInterfaceType(interfaceTypeOrNS);
+    return isDefined(basis) ? basis.switch(interfaceType) : interfaceType.construct(Sentinel());
+  }
+
   export type InferBindingData<TDriver> = TDriver extends Driver<infer TBindingData> ? TBindingData : never;
 
   export interface Driver<TBindingData = unknown> {
@@ -237,19 +291,31 @@ export namespace Context {
     }
   }
 
-  export function Sentinel (): ContextBinding<Sentinel> {
-    const abort = new Abort(new AbortController());
-    return ContextBinding.create(null, Sentinel.ContextDriver, { abort });
+  export function Sentinel (config?: Sentinel.Config): ContextBinding {
+    const abort = new Abort(config?.abort ?? new AbortController());
+    const eventDispatcher = config?.onEvent ?? Sentinel.DefaultEventDispatcher;
+    const sentinel = ContextBinding.create(null, Sentinel.ContextDriver, { abort });
+    return sentinel.bind(EventDispatcher.Driver, isFunction(eventDispatcher) ? { dispatch: eventDispatcher } : eventDispatcher);
   }
   export interface Sentinel {
     readonly abort: Abort;
   }
   export namespace Sentinel {
+    export interface Config {
+      log?: ConsoleLogger;
+      abort?: AbortController;
+      onEvent?: EventDispatcher | EventDispatcher['dispatch'];
+    }
     export const ContextDriver: Driver<Sentinel> = {
       label: 'Context.Sentinel',
       queries: Driver.Queries((match, when, ok) => match([
         when(Abort.QueryType, (binding) => ok(binding.data.abort)),
       ])),
+    };
+    export const DefaultEventDispatcher: EventDispatcher = {
+      dispatch (event: TypedRecord): void {
+        throw new Error(`Context.Sentinel.DefaultEventDispatcher: Event of type "${event.type}" was not handled.`);
+      },
     };
   }
 
@@ -410,13 +476,6 @@ export namespace Context {
     return type as TInterfaceType;
   }
 
-  export function create (): Context;
-  export function create<TContext extends Context> (interfaceType: ImmediateContext.InterfaceType.OrNS<TContext>): TContext;
-  export function create (interfaceTypeOrNS?: ImmediateContext.InterfaceType.OrNS) {
-    const interfaceType = isUndefined(interfaceTypeOrNS) ? ImmediateContext.InterfaceType : unboxInterfaceType(interfaceTypeOrNS);
-    return interfaceType.construct(Sentinel());
-  }
-
   /**
    * `ImmediateContext` is the base implementation of an API layer designed to allow execution pathways to query and
    * extend the context graph so as to make sure that subcontextual processes have visibility of the full context of
@@ -454,17 +513,20 @@ export namespace Context {
     const _abort_ = Symbol('ImmediateContext.abort');
     const _locked_ = Symbol('ImmediateContext.locked');
     const _uniqueCount_ = Symbol('ImmediateContext.uniqueCount');
+    const _dispatcher_ = Symbol('ImmediateContext.EventDispatcher');
 
     export type InterfaceType = typeof InterfaceType;
     export const InterfaceType = Class.define((type) => class _ImmediateContext extends type.EntityInstance {
       [_abort_]?: Abort;
       [_locked_] = false;
       [_uniqueCount_]: number;
+      [_dispatcher_]?: EventDispatcher;
 
       get view (): View { return this._binding.view; }
       get abort (): Abort { return this[_abort_] ??= this.query(Abort.QueryType); }
       get disposables (): DisposableGroup { return this.abort.disposables; }
       get isAborted (): boolean { return this.abort.signal.aborted; }
+      get eventDispatcher (): EventDispatcher { return this[_dispatcher_] ??= this.unbind(EventDispatcher.Driver); }
 
       abortable<TContext extends ImmediateContext> (this: TContext, controller: AbortController): TContext {
         this._assertNotLocked();
@@ -561,6 +623,41 @@ export namespace Context {
           binding = binding.bind(driver, bindingData);
         }
         return binding;
+      }
+      bindEventDispatcher<TContext extends ImmediateContext> (this: TContext, eventDispatcher: EventDispatcher | EventDispatcher['dispatch']): TContext {
+        return this.bind(EventDispatcher, isFunction(eventDispatcher) ? { dispatch: eventDispatcher } : eventDispatcher);
+      }
+
+      dispatchEvent (type: string, data?: unknown): void;
+      dispatchEvent (event: TypedRecord): void;
+      dispatchEvent (arg0: string | TypedRecord, data: unknown = null): void {
+        const event = isString(arg0) ? { type: arg0, data } : arg0;
+        this.eventDispatcher.dispatch(event);
+      }
+
+      execute<TContext extends ImmediateContext, T extends { execute: (context: TContext, ...args: any[]) => any }> (this: TContext, branchId: string, target: T, ...args: SliceTuple.Rest.B<Parameters<T['execute']>>): ReturnType<T['execute']>;
+      execute<TContext extends ImmediateContext, T extends { execute: (context: TContext, ...args: any[]) => any }> (this: TContext, target: T, ...args: SliceTuple.Rest.B<Parameters<T['execute']>>): ReturnType<T['execute']>;
+      execute<TContext extends ImmediateContext, T extends { initialize: (context: TContext, ...args: any[]) => any }> (this: TContext, branchId: string, target: T extends { execute: AnyFunction } ? never : T, ...args: SliceTuple.Rest.B<Parameters<T['initialize']>>): ReturnType<T['initialize']>;
+      execute<TContext extends ImmediateContext, T extends { initialize: (context: TContext, ...args: any[]) => any }> (this: TContext, target: T extends { execute: AnyFunction } ? never : T, ...args: SliceTuple.Rest.B<Parameters<T['initialize']>>): ReturnType<T['initialize']>;
+      execute (arg0: unknown) {
+        type F = (context: Context, ...args: any[]) => any;
+        let target: { execute: F } | { initialize: F };
+        let args: any[];
+        let context: ImmediateContext;
+        if (isString(arg0)) {
+          target = arguments[1];
+          args = Array.prototype.slice.call(arguments, 2);
+          const dispatcher = EventDispatcher.branch(this.eventDispatcher, arg0);
+          context = this.bind(EventDispatcher, dispatcher);
+        }
+        else {
+          target = arg0 as { execute: F } | { initialize: F };
+          args = Array.prototype.slice.call(arguments, 1);
+          context = this;
+        }
+        return 'execute' in target
+          ? target.execute(context, ...args)
+          : target.initialize(context, ...args);
       }
 
       /**
@@ -1183,6 +1280,27 @@ export namespace Context {
     }));
   }
 
+  export interface EventDispatcher {
+    dispatch (event: TypedRecord): void;
+  }
+  export namespace EventDispatcher {
+    export const Driver: Context.Driver<EventDispatcher> = {
+      label: 'Context.EventDispatcher',
+    };
+
+    export const branch = FnCT<EventDispatcher>()(class implements EventDispatcher {
+      constructor (
+        private readonly dispatcher: EventDispatcher,
+        private readonly branchId: string,
+      ) {}
+
+      dispatch (event: TypedRecord): void {
+        this.dispatcher.dispatch({ type: `${this.branchId}:${event.type}`, data: event.data });
+      }
+    });
+  }
+
+
   export function adapt<TContext extends ImmediateContext, A extends any[], R> (interfaceType: ImmediateContext.InterfaceType.OrNS<TContext>): Adapter<TContext>;
   export function adapt<TContext extends ImmediateContext, A extends any[], R> (interfaceType: ImmediateContext.InterfaceType.OrNS<TContext>, execute: ImmediateContext.Callback<TContext, A, R>, thisArg?: any): ImmediateContext.Callback<ImmediateContext, A, R>;
   export function adapt<TContext extends ImmediateContext, A extends any[], R> (interfaceType: ImmediateContext.InterfaceType.OrNS<TContext>, execute?: ImmediateContext.Callback<TContext, A, R>, thisArg?: any): Adapter<TContext> | ImmediateContext.Callback<ImmediateContext, A, R> {
@@ -1217,6 +1335,7 @@ export namespace Context {
 export import ImmediateContext = Context.Immediate;
 export import ContextDriver = Context.Driver;
 export import ContextQuery = Context.Query;
+import type { ConsoleLogger } from './logging';
 
 /**
  * Just for reference in case I want to do something similar in the future. All that `cmsg` formatting is time
