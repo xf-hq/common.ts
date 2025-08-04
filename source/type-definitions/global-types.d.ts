@@ -5,6 +5,7 @@ declare type NotNull = NotNothing | undefined;
 declare type Defined = NotNothing | null;
 declare type Primitive = string | number | bigint | boolean | symbol;
 declare type Known = Primitive | Nothing | object;
+declare type JSType = 'string' | 'number' | 'bigint' | 'boolean' | 'symbol' | 'undefined' | 'object' | 'function' | 'null';
 declare type Truthy = Exclude<string, ''> | Exclude<number, 0> | Exclude<bigint, 0n> | true | symbol;
 declare type Falsey = undefined | null | false | 0 | 0n | '';
 declare interface ModernPromiseLike<T = unknown> {
