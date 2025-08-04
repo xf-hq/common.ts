@@ -635,10 +635,10 @@ export namespace Context {
         this.eventDispatcher.dispatch(event);
       }
 
-      execute<TContext extends ImmediateContext, T extends { execute: (context: TContext, ...args: any[]) => any }> (this: TContext, branchId: string, target: T, ...args: SliceTuple.Rest.B<Parameters<T['execute']>>): ReturnType<T['execute']>;
-      execute<TContext extends ImmediateContext, T extends { execute: (context: TContext, ...args: any[]) => any }> (this: TContext, target: T, ...args: SliceTuple.Rest.B<Parameters<T['execute']>>): ReturnType<T['execute']>;
-      execute<TContext extends ImmediateContext, T extends { initialize: (context: TContext, ...args: any[]) => any }> (this: TContext, branchId: string, target: T extends { execute: AnyFunction } ? never : T, ...args: SliceTuple.Rest.B<Parameters<T['initialize']>>): ReturnType<T['initialize']>;
-      execute<TContext extends ImmediateContext, T extends { initialize: (context: TContext, ...args: any[]) => any }> (this: TContext, target: T extends { execute: AnyFunction } ? never : T, ...args: SliceTuple.Rest.B<Parameters<T['initialize']>>): ReturnType<T['initialize']>;
+      execute<TContext extends ImmediateContext, T extends { execute: (context: TContext, ...args: A) => R }, A extends any[], R> (this: TContext, branchId: string, target: T, ...args: A): R;
+      execute<TContext extends ImmediateContext, T extends { execute: (context: TContext, ...args: A) => R }, A extends any[], R> (this: TContext, target: T, ...args: A): R;
+      execute<TContext extends ImmediateContext, T extends { initialize: (context: TContext, ...args: A) => R }, A extends any[], R> (this: TContext, branchId: string, target: T extends { execute: AnyFunction } ? never : T, ...args: A): R;
+      execute<TContext extends ImmediateContext, T extends { initialize: (context: TContext, ...args: A) => R }, A extends any[], R> (this: TContext, target: T extends { execute: AnyFunction } ? never : T, ...args: A): R;
       execute (arg0: unknown) {
         type F = (context: Context, ...args: any[]) => any;
         let target: { execute: F } | { initialize: F };
