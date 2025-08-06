@@ -113,6 +113,7 @@ export class StaticColor {
   get alpha () { return isDefined(this.rgba) ? this.rgba.a : this.hsla.a; }
 
   get css_hsl () { return `hsl(${this.hsla.h * 360}deg, ${this.hsla.s * 100}%, ${this.hsla.l * 100}%)`; }
+  get css_hsla () { return `hsla(${this.hsla.h * 360}deg, ${this.hsla.s * 100}%, ${this.hsla.l * 100}%, ${this.hsla.a})`; }
 
   toString () { return this.hex; }
   valueOf () { return this.hex; }

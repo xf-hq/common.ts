@@ -95,6 +95,8 @@ export namespace Context {
 
   export type InferBindingData<TDriver> = TDriver extends Driver<infer TBindingData> ? TBindingData : never;
 
+  const CacheKey = Symbol('Context.Driver.CacheKey');
+
   export interface Driver<TBindingData = unknown> {
     /**
      * A relatively unique, human-understandable identifier, preferably formatted as a namespace-style path/identifier.
@@ -118,8 +120,11 @@ export namespace Context {
      * to work.
      */
     readonly queries?: Driver.Queries<TBindingData>;
+
+    [CacheKey]?: symbol;
   }
   export namespace Driver {
+
     export type ResolveQuery<A extends any[], Q> = (queryType: Query.Type<A, Q>, binding: ContextBinding, ...args: A) => Query.Result<Q> | null;
 
     export interface Queries<C> {
@@ -285,6 +290,7 @@ export namespace Context {
     export type InferBindingData<TType extends Type> = TType extends Type<infer TBindingData> ? TBindingData : never;
     export function unbox<TBindingData, T extends Type<TBindingData> | Driver<TBindingData>> (type: T): T extends Type ? Driver<TBindingData> : T extends Driver ? Driver<TBindingData> : never;
     export function unbox (type: Type) {
+      if (CacheKey in type) return type;
       if ('Driver' in type) return type.Driver;
       if ('ContextDriver' in type) return type.ContextDriver;
       return type;
@@ -509,27 +515,32 @@ export namespace Context {
     export type BindPairs<B extends readonly BindPair<unknown>[]> = { [I in keyof B]: B[I] extends BindPair<infer T> ? BindPair<T> extends B[I] ? B[I] : [any, InvalidPairMessage, never] : [InvalidPairMessage, any, never] };
     type InvalidPairMessage = `The first element must be a context driver and the second element must match the driver\'s binding data type.`;
 
-    const _queryResultCache_ = Symbol('ImmediateContext[_queryResultCache_]');
-    const _abort_ = Symbol('ImmediateContext.abort');
-    const _locked_ = Symbol('ImmediateContext.locked');
-    const _uniqueCount_ = Symbol('ImmediateContext.uniqueCount');
-    const _dispatcher_ = Symbol('ImmediateContext.EventDispatcher');
+    const _abort_ = Symbol('ImmediateContext/abort');
+    const _locked_ = Symbol('ImmediateContext/locked');
+    const _uniqueCount_ = Symbol('ImmediateContext/uniqueCount');
 
     export type InterfaceType = typeof InterfaceType;
     export const InterfaceType = Class.define((type) => class _ImmediateContext extends type.EntityInstance {
       [_abort_]?: Abort;
       [_locked_] = false;
       [_uniqueCount_]: number;
-      [_dispatcher_]?: EventDispatcher;
 
       get view (): View { return this._binding.view; }
       get abort (): Abort { return this[_abort_] ??= this.query(Abort.QueryType); }
       get disposables (): DisposableGroup { return this.abort.disposables; }
       get isAborted (): boolean { return this.abort.signal.aborted; }
-      get eventDispatcher (): EventDispatcher { return this[_dispatcher_] ??= this.unbind(EventDispatcher.Driver); }
+      get eventDispatcher (): EventDispatcher { return this.unbind(EventDispatcher.Driver); }
+
+      private _ImmediateContext_getCached<T extends { label: string; [CacheKey]?: symbol }, V> (type: T): V | undefined {
+        if (CacheKey in type) return this[type[CacheKey]];
+      }
+      private _ImmediateContext_setCached<T extends { label: string; [CacheKey]?: symbol }, V> (type: T, value: V): V {
+        const cacheKey = type[CacheKey] ?? Symbol(type.label);
+        return this[cacheKey] = value;
+      }
 
       abortable<TContext extends ImmediateContext> (this: TContext, controller: AbortController): TContext {
-        this._assertNotLocked();
+        this._ImmediateContext_assertNotLocked();
         return this.abort.forkToContext(this, controller);
       }
 
@@ -569,7 +580,7 @@ export namespace Context {
         return this;
       }
 
-      private _assertNotLocked () {
+      private _ImmediateContext_assertNotLocked () {
         if (this[_locked_]) throw new Error(`Cannot bind to a locked context. Are you sure you're binding against the correct context instance?`);
       }
       bind<TContext extends ImmediateContext> (this: TContext, driver: Driver<void>): TContext;
@@ -580,7 +591,7 @@ export namespace Context {
       bind<TContext extends ImmediateContext, RContext extends ImmediateContext, TBind extends BindUsing.Bind.OrNS<TContext, any, RContext>> (this: TContext, bind: TBind, ...args: BindUsing.Bind.InferArgs<TBind>): RContext;
       bind<TBind extends BindUsing.Bind.OrNS<this>> (this: BindUsing.Bind.InferTContext<TBind>, bind: TBind, ...args: BindUsing.Bind.InferArgs<TBind>): BindUsing.Bind.InferRContext<TBind>;
       bind (arg0: Driver | Type | BindUsing.Bind.OrNS, ...rest: any[]) {
-        this._assertNotLocked();
+        this._ImmediateContext_assertNotLocked();
         if (isNonClassFunction(arg0)) return arg0(this, ...rest);
         if ('bindContext' in arg0) return arg0.bindContext(this, ...rest);
         const driver = Type.unbox(arg0);
@@ -598,7 +609,7 @@ export namespace Context {
         arg1: Driver | Type,
         bindingData?: unknown
       ): TContext {
-        this._assertNotLocked();
+        this._ImmediateContext_assertNotLocked();
         if ('InterfaceType' in contextInterfaceType) contextInterfaceType = contextInterfaceType.InterfaceType;
         const driver = Type.unbox(arg1);
         const binding = ContextBinding.create(this._binding, driver, bindingData);
@@ -607,16 +618,16 @@ export namespace Context {
       }
 
       bindAll<B extends readonly BindPair<unknown>[]> (bindings: BindPairs<B>): this {
-        const binding = this._bindAll(bindings);
+        const binding = this._ImmediateContext_bindAll(bindings);
         return type.entityClass.constructSameAs(this, [binding]);
       }
       bindAllAs<TContext extends ImmediateContext, B extends readonly BindPair<unknown>[]> (contextInterfaceType: InterfaceType.OrNS<TContext>, bindings: BindPairs<B>): TContext {
-        const binding = this._bindAll(bindings);
+        const binding = this._ImmediateContext_bindAll(bindings);
         if ('InterfaceType' in contextInterfaceType) contextInterfaceType = contextInterfaceType.InterfaceType;
         return contextInterfaceType.construct(binding);
       }
-      private _bindAll (bindings: BindPairs<readonly BindPair<unknown>[]>): ContextBinding<any> {
-        this._assertNotLocked();
+      private _ImmediateContext_bindAll (bindings: BindPairs<readonly BindPair<unknown>[]>): ContextBinding<any> {
+        this._ImmediateContext_assertNotLocked();
         let binding = this._binding;
         for (let i = 0; i < bindings.length; i++) {
           const [driver, bindingData] = bindings[i];
@@ -635,13 +646,11 @@ export namespace Context {
         this.eventDispatcher.dispatch(event);
       }
 
-      execute<TContext extends ImmediateContext, T extends { execute: (context: TContext, ...args: A) => R }, A extends any[], R> (this: TContext, branchId: string, target: T, ...args: A): R;
-      execute<TContext extends ImmediateContext, T extends { execute: (context: TContext, ...args: A) => R }, A extends any[], R> (this: TContext, target: T, ...args: A): R;
-      execute<TContext extends ImmediateContext, T extends { initialize: (context: TContext, ...args: A) => R }, A extends any[], R> (this: TContext, branchId: string, target: T extends { execute: AnyFunction } ? never : T, ...args: A): R;
-      execute<TContext extends ImmediateContext, T extends { initialize: (context: TContext, ...args: A) => R }, A extends any[], R> (this: TContext, target: T extends { execute: AnyFunction } ? never : T, ...args: A): R;
+      execute<TContext extends ImmediateContext, A extends any[], R> (this: TContext, target: { execute: (context: TContext, ...args: A) => R }, ...args: A): R;
+      execute<TContext extends ImmediateContext, A extends any[], R> (this: TContext, branchId: string, target: { execute: (context: TContext, ...args: A) => R }, ...args: A): R;
       execute (arg0: unknown) {
         type F = (context: Context, ...args: any[]) => any;
-        let target: { execute: F } | { initialize: F };
+        let target: { execute: F };
         let args: any[];
         let context: ImmediateContext;
         if (isString(arg0)) {
@@ -651,13 +660,11 @@ export namespace Context {
           context = this.bind(EventDispatcher, dispatcher);
         }
         else {
-          target = arg0 as { execute: F } | { initialize: F };
+          target = arg0 as { execute: F };
           args = Array.prototype.slice.call(arguments, 1);
           context = this;
         }
-        return 'execute' in target
-          ? target.execute(context, ...args)
-          : target.initialize(context, ...args);
+        return target.execute(context, ...args);
       }
 
       /**
@@ -719,7 +726,7 @@ export namespace Context {
       unbind<TType extends Type> (type: TType): Type.InferBindingData<TType>;
       unbind (arg: Driver | Type) {
         const driver = Type.unbox(arg);
-        return this._binding.view.unbind(driver);
+        return this._ImmediateContext_getCached(driver) ?? this._ImmediateContext_setCached(driver, this._binding.view.unbind(driver));
       }
       tryUnbind<TDriver extends Driver> (driver: TDriver): InferBindingData<TDriver> | undefined;
       tryUnbind<TType extends Type> (type: TType): Type.InferBindingData<TType> | undefined;
@@ -728,7 +735,7 @@ export namespace Context {
         return this._binding.view.tryUnbind(driver);
       }
 
-      private [_queryResultCache_]?: WeakMap<Query.Type, Query.Result<any>>;
+      // private [_queryResultCache_]?: WeakMap<Query.Type, Query.Result<any>>;
       query<A extends any[], Q> (type: Query.Type<A, Q>, ...args: A): Q {
         const result = this.tryQuery(type, ...args);
         if (isDefined(result)) {
@@ -741,7 +748,7 @@ export namespace Context {
         const isCacheable = args.length === 0;
         let result: Query.Result<Q> | undefined;
         if (isCacheable) {
-          result = this[_queryResultCache_]?.get(type);
+          result = this._ImmediateContext_getCached(type);
           if (isDefined(result) && result.success) return result;
         }
         if (isUndefined(result)) {
@@ -751,7 +758,7 @@ export namespace Context {
         }
         if (isDefined(result)) {
           if (result.success) {
-            if (isCacheable) (this[_queryResultCache_] ??= new WeakMap()).set(type, result);
+            if (isCacheable) this._ImmediateContext_setCached(type, result);
             return result;
           }
         }
@@ -1003,6 +1010,8 @@ export namespace Context {
        * type, that implementation will always supersede this one.
        */
       query?: ((subindex: Context.QueryabilityIndex.IndexOfQueryableContextsForASpecificQueryType<A, Q>, ...args: A) => Query.Result<Q>) | Type.EntryMap<A, Q>;
+
+      [CacheKey]?: symbol;
     }
     export function Type<A extends any[], Q> (
       /** Provides a function (`match`) for defining a list of context types that queries of this type can match, and a
@@ -1336,6 +1345,7 @@ export import ImmediateContext = Context.Immediate;
 export import ContextDriver = Context.Driver;
 export import ContextQuery = Context.Query;
 import type { ConsoleLogger } from './logging';
+import { cache } from 'react';
 
 /**
  * Just for reference in case I want to do something similar in the future. All that `cmsg` formatting is time
