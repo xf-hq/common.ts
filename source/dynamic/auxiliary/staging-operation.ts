@@ -1,5 +1,3 @@
-// import type { Persistence } from './persistence';
-
 export class StagingOperation<TStagingDomain, TChange> {
   static create<TStagingDomain, TOpState, TOpArgs extends any[], TChange> (
     domainProvider: StagingOperation.DomainProvider<TStagingDomain, TOpState, TOpArgs, TChange>,
