@@ -1,6 +1,6 @@
 import type { ConsoleLogger } from '../facilities/logging';
 import { PathLens } from '../facilities/path-lens';
-import { isFunction, isString } from '../general/type-checking.ts';
+import { isString } from '../general/type-checking.ts';
 
 export namespace Messaging {
   export interface Message<T extends string = string, D = any> {
@@ -70,16 +70,16 @@ export namespace Messaging {
     }
   }
 
-  export interface InboundMessageContext<TData = unknown> {
+  export interface InboundMessageContext<TData = any> {
     readonly messageType: PathLens;
     readonly messageData: TData;
     withMessageType (messageType: PathLens, current: this): this;
   }
-  export function InboundMessageContext<TData> (messageType: string | PathLens, messageData: TData): InboundMessageContext<TData> {
+  export function InboundMessageContext<TData = any> (messageType: string | PathLens, messageData: TData): InboundMessageContext<TData> {
     if (isString(messageType)) messageType = PathLens.from(':', messageType);
     return new DefaultInboundMessageContext(messageType, messageData);
   }
-  class DefaultInboundMessageContext<TData = unknown> implements InboundMessageContext<TData> {
+  class DefaultInboundMessageContext<TData = any> implements InboundMessageContext<TData> {
     constructor (
       public readonly messageType: PathLens,
       public readonly messageData: TData,
@@ -89,7 +89,7 @@ export namespace Messaging {
     }
   }
 
-  export interface InboundRequestMessageContext<TData = unknown> extends InboundMessageContext<TData> {
+  export interface InboundRequestMessageContext<TData = any> extends InboundMessageContext<TData> {
     readonly response: ResponseInterface;
   }
 
@@ -121,26 +121,26 @@ export namespace Messaging {
   export const MessageRouterFactory = (createLogger: ConsoleLogger.Factory) => ({
     MessageRouter<TContext extends InboundMessageContext> (label: string, handlers: HandlersArg<TContext>): MessageHandler<TContext> {
       const log = createLogger(label);
-      return MessageRouter(label, log, handlers);
+      return MessageRouter(log, handlers);
     },
     RequestRouter<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext>(label: string, props: RequestRouterConfig<TContext, UContext>): MessageHandler<TContext> {
       const log = createLogger(label);
-      return RequestRouter(label, log, props);
+      return RequestRouter(log, props);
     },
   });
 
-  export function MessageRouter<TContext extends InboundMessageContext> (label: string, log: ConsoleLogger, handlers: Record<string, MessageHandler<TContext> | MessageHandler<TContext>['handleMessage']>): MessageHandler<TContext> {
+  export function MessageRouter<TContext extends InboundMessageContext> (log: ConsoleLogger, handlers: Record<string, MessageHandler<TContext> | MessageHandler<TContext>['handleMessage']>): MessageHandler<TContext> {
     const _handlers: Record<string, MessageHandler<TContext>> = {};
     for (const key in handlers) {
       const handler = handlers[key];
-      _handlers[key] = isFunction(handler) ? { handleMessage: handler } : handler;
+      _handlers[key] = 'handleMessage' in handler ? handler : { handleMessage: handler };
     }
     return {
-      handleMessage: (context) => _handleMessage(label, log, context, _handlers),
+      handleMessage: (context) => _handleMessage(log, context, _handlers),
     };
   }
 
-  function _handleMessage<TContext extends InboundMessageContext> (routerLabel: string, log: ConsoleLogger, context: TContext, handlers: Record<string, MessageHandler<TContext>>): void {
+  function _handleMessage<TContext extends InboundMessageContext> (log: ConsoleLogger, context: TContext, handlers: Record<string, MessageHandler<TContext>>): void {
     // using _ = log.group.endOnDispose(`Incoming message: ${context.messageType}`, context.messageType.pathFromSegmentEnd);
     const messageType = context.messageType;
     const destinationRouteName = messageType.segmentValue;
@@ -152,8 +152,8 @@ export namespace Messaging {
     else log.warn(`Unhandled message type "${messageType.segmentValue}" in path "${messageType.fullPath}".`);
   }
 
-  export function RequestRouter<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> (label: string, log: ConsoleLogger, config: RequestRouterConfig<TContext, UContext>): MessageHandler<TContext> {
-    const router = MessageRouter(label, log, config.routes);
+  export function RequestRouter<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> (log: ConsoleLogger, config: RequestRouterConfig<TContext, UContext>): MessageHandler<TContext> {
+    const router = MessageRouter(log, config.routes);
     return {
       handleMessage: (context) => {
         const request = context.messageData as Messaging.Message.Request.Data;
@@ -166,5 +166,46 @@ export namespace Messaging {
   export interface RequestRouterConfig<TContext extends InboundMessageContext, UContext extends InboundRequestMessageContext> {
     createRequestContext: (context: TContext, requestType: PathLens, requestData: any, ref: unknown) => UContext;
     routes: Record<string, MessageHandler<UContext> | MessageHandler<UContext>['handleMessage']>;
+  }
+
+  export namespace V2 {
+    export interface MessageHandler<TContext extends InboundMessageContext = InboundMessageContext, A extends any[] = any[]> {
+      handleMessage (context: TContext, ...args: A): void;
+    }
+
+    export interface MessageRouterConfig<TContext extends InboundMessageContext, A extends any[]> {
+      readonly routes: Record<string, MessageHandler<TContext, A> | MessageHandler<TContext, A>['handleMessage']>;
+      readonly unhandled?: MessageHandler<TContext, A>['handleMessage'];
+      readonly log?: ConsoleLogger;
+    }
+
+    const UNHANDLED = Symbol('MessageRouter.unhandled');
+    export function MessageRouter<TContext extends InboundMessageContext, A extends any[]> (config: MessageRouterConfig<TContext, A>): MessageHandler<TContext, A> {
+      const _handlers: Record<string, MessageHandler<TContext, A>> = {};
+      if (config.unhandled) _handleMessage[UNHANDLED] = 'handleMessage' in config.unhandled ? config.unhandled : { handleMessage: config.unhandled };
+      for (const key in config.routes) {
+        const handler = config.routes[key];
+        _handlers[key] = 'handleMessage' in handler ? handler : { handleMessage: handler };
+      }
+      return {
+        handleMessage: (context, ...args) => _handleMessage(context, _handlers, config, ...args),
+      };
+    }
+
+    function _handleMessage<TContext extends InboundMessageContext, A extends any[]> (context: TContext, _handlers: Record<string | symbol, MessageHandler<TContext, A>>, config: MessageRouterConfig<TContext, A>, ...args: A): void {
+      // using _ = log.group.endOnDispose(`Incoming message: ${context.messageType}`, context.messageType.pathFromSegmentEnd);
+      const messageType = context.messageType;
+      const destinationRouteName = messageType.segmentValue;
+      const handler = _handlers[destinationRouteName];
+      if (handler) {
+        context = context.withMessageType(messageType.nextSegment, context);
+        return handler.handleMessage(context, ...args);
+      }
+      else {
+        const fallback = _handlers[UNHANDLED];
+        if (fallback) return fallback.handleMessage(context, ...args);
+        config.log?.warn(`Unhandled message type "${messageType.segmentValue}" in path "${messageType.fullPath}".`);
+      }
+    }
   }
 }
