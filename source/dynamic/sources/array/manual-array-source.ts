@@ -18,6 +18,9 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
   /** @internal */
   get __array () { return this.#array; }
 
+  get demandExists () { return this.#emitter.demandExists; }
+  get subscriberCount () { return this.#emitter.subscriberCount; }
+
   get length () { return this.#array.length; }
 
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<T>], A>, ...args: A): ArraySource.Subscription<T> {
@@ -157,6 +160,7 @@ export class ManualArraySource<T> implements ArraySource.Manual<T> {
     }
   }
   clear (): void {
+    if (this.#array.length === 0) return;
     this.splice(0, this.length);
   }
 

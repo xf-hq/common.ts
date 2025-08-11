@@ -154,6 +154,9 @@ export namespace ArraySource {
     readonly length: number;
   }
   export interface Manual<T> extends Immediate<T> {
+    readonly demandExists: boolean;
+    readonly subscriberCount: number;
+
     hold (): void;
     release (): void;
 
