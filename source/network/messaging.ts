@@ -1,4 +1,4 @@
-import type { ConsoleLogger } from '../facilities/logging';
+import { SILENT_CONSOLE_LOGGER, type ConsoleLogger } from '../facilities/logging';
 import { PathLens } from '../facilities/path-lens';
 import { isString } from '../general/type-checking.ts';
 
@@ -71,21 +71,39 @@ export namespace Messaging {
   }
 
   export interface InboundMessageContext<TData = any> {
+    readonly message: Message<string, TData>;
     readonly messageType: PathLens;
     readonly messageData: TData;
     withMessageType (messageType: PathLens, current: this): this;
   }
-  export function InboundMessageContext<TData = any> (messageType: string | PathLens, messageData: TData): InboundMessageContext<TData> {
-    if (isString(messageType)) messageType = PathLens.from(':', messageType);
-    return new DefaultInboundMessageContext(messageType, messageData);
+  export function InboundMessageContext<TData> (message: Message<string, TData>): InboundMessageContext<TData>;
+  export function InboundMessageContext<TData = any> (messageType: string | PathLens, messageData: TData): InboundMessageContext<TData>;
+  export function InboundMessageContext (arg: string | PathLens | Message, messageData?: any) {
+    let message: Message;
+    let messageType: PathLens;
+    if (isString(arg)) {
+      messageType = PathLens.from(':', arg);
+      message = Message(arg, messageData);
+    }
+    else if (arg instanceof PathLens) {
+      messageType = arg;
+      message = Message(arg.fullPath, messageData);
+    }
+    else {
+      messageType = PathLens.from(':', arg.type);
+      messageData = arg.data;
+      message = arg;
+    }
+    return new DefaultInboundMessageContext(message, messageType, messageData);
   }
   class DefaultInboundMessageContext<TData = any> implements InboundMessageContext<TData> {
     constructor (
+      public readonly message: Message<string, TData>,
       public readonly messageType: PathLens,
       public readonly messageData: TData,
     ) {}
     withMessageType (messageType: PathLens, current: this): this {
-      return new DefaultInboundMessageContext(messageType, current.messageData) as this;
+      return new DefaultInboundMessageContext(current.message, messageType, current.messageData) as this;
     }
   }
 
@@ -173,22 +191,22 @@ export namespace Messaging {
       handleMessage (context: TContext, ...args: A): void;
     }
 
-    export interface MessageRouterConfig<TContext extends InboundMessageContext, A extends any[]> {
-      readonly routes: Record<string, MessageHandler<TContext, A> | MessageHandler<TContext, A>['handleMessage']>;
-      readonly unhandled?: MessageHandler<TContext, A>['handleMessage'];
+    export interface MessageRouterConfig<TContext extends InboundMessageContext = InboundMessageContext, A extends any[] = []> {
+      readonly routes: Record<string, MessageHandler<TContext, [...A, log: ConsoleLogger]> | MessageHandler<TContext, [...A, log: ConsoleLogger]>['handleMessage']>;
+      readonly fallback?: MessageHandler<TContext, [...A, log: ConsoleLogger]> | MessageHandler<TContext, [...A, log: ConsoleLogger]>['handleMessage'];
       readonly log?: ConsoleLogger;
     }
 
-    const UNHANDLED = Symbol('MessageRouter.unhandled');
+    const FALLBACK = Symbol('MessageRouter.fallback');
     export function MessageRouter<TContext extends InboundMessageContext, A extends any[]> (config: MessageRouterConfig<TContext, A>): MessageHandler<TContext, A> {
-      const _handlers: Record<string, MessageHandler<TContext, A>> = {};
-      if (config.unhandled) _handleMessage[UNHANDLED] = 'handleMessage' in config.unhandled ? config.unhandled : { handleMessage: config.unhandled };
+      const _handlers: Record<string | symbol, MessageHandler<TContext, [...A, log: ConsoleLogger]>> = {};
+      if (config.fallback) _handlers[FALLBACK] = 'handleMessage' in config.fallback ? config.fallback : { handleMessage: config.fallback };
       for (const key in config.routes) {
         const handler = config.routes[key];
         _handlers[key] = 'handleMessage' in handler ? handler : { handleMessage: handler };
       }
       return {
-        handleMessage: (context, ...args) => _handleMessage(context, _handlers, config, ...args),
+        handleMessage: (context, ...args) => _handleMessage(context, _handlers, config, ...args, config.log ?? SILENT_CONSOLE_LOGGER),
       };
     }
 
@@ -202,7 +220,7 @@ export namespace Messaging {
         return handler.handleMessage(context, ...args);
       }
       else {
-        const fallback = _handlers[UNHANDLED];
+        const fallback = _handlers[FALLBACK];
         if (fallback) return fallback.handleMessage(context, ...args);
         config.log?.warn(`Unhandled message type "${messageType.segmentValue}" in path "${messageType.fullPath}".`);
       }
