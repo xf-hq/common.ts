@@ -1,15 +1,16 @@
 import { dispose, tryDispose } from '../../../../general/disposables';
-import { Async } from '../../../async/async';
+import { Async, isAsync } from '../../../async/async';
+import { isOnDemandAsync } from '../../../async/on-demand-async';
 import { Subscribable } from '../../../core';
 import { ValueData } from '../../../data';
 import { normalizeValueSourceReceiverArg, ValueSourceTag } from '../../value-source/common';
 import { isValueSource, ValueSource } from '../../value-source/value-source';
 import { FixedRecordSource } from '../fixed-record-source';
 
-type ValueType<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> = T[K] extends ValueData.NotAsync<infer V> ? V : never;
-type RawValue<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> = ValueType<T, K> | ValueSource<ValueType<T, K>>;
+type ValueType<T extends Record<string, ValueData<unknown>>, K extends SRecord.KeyOf<T>> = T[K] extends ValueData<infer V> ? V : never;
+type RawValue<T extends Record<string, ValueData<unknown>>, K extends SRecord.KeyOf<T>> = ValueData<ValueType<T, K>>;
 
-export class GetValueFromFixedRecordSource<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>>
+export class GetValueFromFixedRecordSource<T extends Record<string, ValueData<unknown>>, K extends SRecord.KeyOf<T>>
 implements ValueSource<ValueType<T, K>>, Subscribable.DemandObserver.ListenerInterface<[value: ValueType<T, K>]> {
   constructor (
     private readonly source: FixedRecordSource<T> | FixedRecordSource.Immediate<T>,
@@ -28,6 +29,7 @@ implements ValueSource<ValueType<T, K>>, Subscribable.DemandObserver.ListenerInt
 
   online (out: Subscribable.Controller<[value: ValueType<T, K>]>): void {
     const state: State<T, K> = this.#state = {
+      innerAsync: null,
       outerSubscription: null,
       innerSubscription: null,
       finalization: Async.create(),
@@ -36,7 +38,7 @@ implements ValueSource<ValueType<T, K>>, Subscribable.DemandObserver.ListenerInt
       rawValue: undefined!,
       value: undefined!,
     };
-    FixedRecordSource.subscribe(this.source, new OuterReceiver(this.key, out, state));
+    FixedRecordSource.subscribe(this.source, new RecordEventReceiver(this.key, out, state));
   }
   offline (out: Subscribable.Controller<[value: ValueType<T, K>]>): void {
     const state = this.#state!;
@@ -46,7 +48,8 @@ implements ValueSource<ValueType<T, K>>, Subscribable.DemandObserver.ListenerInt
   }
 }
 
-interface State<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> {
+interface State<T extends Record<string, ValueData<unknown>>, K extends SRecord.KeyOf<T>> {
+  innerAsync: Disposable | null;
   outerSubscription: FixedRecordSource.Subscription<T> | null;
   innerSubscription: ValueSource.Subscription<ValueType<T, K>> | null;
   finalization: Async.Manual<true>;
@@ -56,7 +59,7 @@ interface State<T extends Record<string, ValueData.NotAsync<unknown>>, K extends
   value: ValueType<T, K>;
 }
 
-class OuterReceiver<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> implements FixedRecordSource.EventReceiver<T, MapRecord<T, any>> {
+class RecordEventReceiver<T extends Record<string, ValueData<unknown>>, K extends SRecord.KeyOf<T>> implements FixedRecordSource.EventReceiver<T, MapRecord<T, any>> {
   constructor (
     private readonly _key: K,
     private readonly _emitter: Subscribable.Controller<[value: ValueType<T, K>]>,
@@ -96,10 +99,22 @@ class OuterReceiver<T extends Record<string, ValueData.NotAsync<unknown>>, K ext
   _setRaw (rawValue: RawValue<T, K>): void {
     const state = this._state;
     state.rawValue = rawValue;
+    tryDispose(state.innerAsync);
     tryDispose(state.innerSubscription);
     if (isValueSource(rawValue)) {
       state.innerEnded = false;
-      ValueSource.subscribe(rawValue, new InnerReceiver(this._emitter, state));
+      ValueSource.subscribe(rawValue, new ValueReceiver(this._emitter, state));
+    }
+    else if (isAsync(rawValue)) {
+      rawValue.then((_rawValue) => {
+        if (state.rawValue !== rawValue) return;
+        this._setRaw(_rawValue);
+      });
+    }
+    else if (isOnDemandAsync(rawValue)) {
+      const async = rawValue.require();
+      state.innerAsync = async;
+      async.then((_rawValue) => this._setRaw(_rawValue));
     }
     else {
       state.innerEnded = true;
@@ -109,7 +124,7 @@ class OuterReceiver<T extends Record<string, ValueData.NotAsync<unknown>>, K ext
   }
 }
 
-class InnerReceiver<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>> implements ValueSource.Receiver<ValueType<T, K>> {
+class ValueReceiver<T extends Record<string, ValueData<unknown>>, K extends SRecord.KeyOf<T>> implements ValueSource.Receiver<ValueType<T, K>> {
   constructor (
     private readonly _emitter: Subscribable.Controller<[value: ValueType<T, K>]>,
     private readonly _state: State<T, K>,
@@ -133,7 +148,7 @@ class InnerReceiver<T extends Record<string, ValueData.NotAsync<unknown>>, K ext
   }
 }
 
-class Subscription<T extends Record<string, ValueData.NotAsync<unknown>>, K extends SRecord.KeyOf<T>, A extends any[]> implements ValueSource.Subscription<ValueType<T, K>> {
+class Subscription<T extends Record<string, ValueData<unknown>>, K extends SRecord.KeyOf<T>, A extends any[]> implements ValueSource.Subscription<ValueType<T, K>> {
   constructor (
     private readonly _state: State<T, K>,
     private readonly _disposable: Disposable,

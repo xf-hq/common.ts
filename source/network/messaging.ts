@@ -192,7 +192,7 @@ export namespace Messaging {
     }
 
     export interface MessageRouterConfig<TContext extends InboundMessageContext = InboundMessageContext, A extends any[] = []> {
-      readonly routes: Record<string, MessageHandler<TContext, [...A, log: ConsoleLogger]> | MessageHandler<TContext, [...A, log: ConsoleLogger]>['handleMessage']>;
+      readonly routes?: Record<string, MessageHandler<TContext, [...A, log: ConsoleLogger]> | MessageHandler<TContext, [...A, log: ConsoleLogger]>['handleMessage']>;
       readonly fallback?: MessageHandler<TContext, [...A, log: ConsoleLogger]> | MessageHandler<TContext, [...A, log: ConsoleLogger]>['handleMessage'];
       readonly log?: ConsoleLogger;
     }

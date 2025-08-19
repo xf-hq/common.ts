@@ -1,9 +1,11 @@
-import type { Async } from './async/async';
+import { Async, isAsync } from './async/async';
+import { isOnDemandAsync, type OnDemandAsync } from './async/on-demand-async';
 import { ArraySource, AssociativeRecordSource, BooleanSource, FixedRecordSource, isArraySource, isAssociativeRecordSource, isFixedRecordSource, isMapSource, isSetSource, isValueSource, MapSource, SetSource, ValueSource, type NumberSource, type StringSource } from './sources';
 
 export type ValueData<T> =
   | ValueData.Immediate<T>
-  | Async<ValueData.Immediate<T>>;
+  | Async<ValueData.Immediate<T>>
+  | OnDemandAsync<ValueData.Immediate<T>>;
 export namespace ValueData {
   export type NotAsync<T> = Exclude<T, Async<any>>;
   export type Immediate<T> =
@@ -15,7 +17,8 @@ export namespace ValueData {
 }
 export type StringData =
   | StringData.Immediate
-  | Async<StringData.Immediate>;
+  | Async<StringData.Immediate>
+  | OnDemandAsync<StringData.Immediate>;
 export namespace StringData {
   export type NotAsync = Exclude<StringData, Async<any>>;
   export type Immediate =
@@ -25,7 +28,8 @@ export namespace StringData {
 }
 export type NumberData =
   | NumberData.Immediate
-  | Async<NumberData.Immediate>;
+  | Async<NumberData.Immediate>
+  | OnDemandAsync<NumberData.Immediate>;
 export namespace NumberData {
   export type NotAsync = Exclude<NumberData, Async<any>>;
   export type Immediate =
@@ -35,7 +39,8 @@ export namespace NumberData {
 }
 export type BooleanData =
   | BooleanData.Immediate
-  | Async<BooleanData.Immediate>;
+  | Async<BooleanData.Immediate>
+  | OnDemandAsync<BooleanData.Immediate>;
 export namespace BooleanData {
   export type NotAsync = Exclude<BooleanData, Async<any>>;
   export type Immediate =
@@ -60,7 +65,8 @@ export namespace BasicPrimitiveData {
 
 export type ArrayData<T> =
   | ArrayData.Immediate<T>
-  | Async<ArrayData.Immediate<T>>;
+  | Async<ArrayData.Immediate<T>>
+  | OnDemandAsync<ArrayData.Immediate<T>>;
 export namespace ArrayData {
   export type NotAsync<T> = Exclude<ArrayData<T>, Async<any>>;
   export type Immediate<T> =
@@ -72,7 +78,8 @@ export namespace ArrayData {
 }
 export type MapData<K, V> =
   | MapData.Immediate<K, V>
-  | Async<MapData.Immediate<K, V>>;
+  | Async<MapData.Immediate<K, V>>
+  | OnDemandAsync<MapData.Immediate<K, V>>;
 export namespace MapData {
   export type NotAsync<K, V> = Exclude<MapData<K, V>, Async<any>>;
   export type Immediate<K, V> =
@@ -84,7 +91,8 @@ export namespace MapData {
 }
 export type SetData<T> =
   | SetData.Immediate<T>
-  | Async<SetData.Immediate<T>>;
+  | Async<SetData.Immediate<T>>
+  | OnDemandAsync<SetData.Immediate<T>>;
 export namespace SetData {
   export type NotAsync<T> = Exclude<SetData<T>, Async<any>>;
   export type Immediate<T> =
@@ -96,7 +104,8 @@ export namespace SetData {
 }
 export type FixedRecordData<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
   | FixedRecordData.Immediate<TRecord, TEventPerField>
-  | Async<FixedRecordData.Immediate<TRecord, TEventPerField>>;
+  | Async<FixedRecordData.Immediate<TRecord, TEventPerField>>
+  | OnDemandAsync<FixedRecordData.Immediate<TRecord, TEventPerField>>;
 export namespace FixedRecordData {
   export type NotAsync<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
     | Exclude<FixedRecordData<TRecord, TEventPerField>, Async<any>>;
@@ -106,10 +115,24 @@ export namespace FixedRecordData {
   export function snapshot<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown>> (source: Immediate<TRecord, TEventPerField>): Readonly<TRecord> {
     return isFixedRecordSource(source) ? source.__record : source;
   }
+
+  export type RecordOf<TData extends FixedRecordData<any, any>> = TData extends FixedRecordData<infer TRecord, any> ? TRecord : never;
+  export type Keys<TData extends FixedRecordData<any, any>> = keyof RecordOf<TData>;
+  export type ValueOf<TData extends FixedRecordData<any, any>, TKey extends Keys<TData>> = RecordOf<TData>[TKey] extends ValueData<infer V> ? V : never;
+
+  export function getValue<TRecord extends { [P in K]: ValueData<V> }, K extends keyof TRecord, V> (key: K, source: FixedRecordData<TRecord>): V;
+  export function getValue (key: any, source: FixedRecordData<any>) {
+    console.debug(`source:`, source);
+    if (isFixedRecordSource(source)) return FixedRecordSource.getAndUnboxValueDataField(key, source);
+    if (isAsync(source)) return Async.map((_source: any) => getValue(key, _source), source);
+    if (isOnDemandAsync(source)) return source.map((_source: any) => getValue(key, _source));
+    return source[key];
+  }
 }
 export type AssociativeRecordData<T> =
   | AssociativeRecordData.Immediate<T>
-  | Async<AssociativeRecordData.Immediate<T>>;
+  | Async<AssociativeRecordData.Immediate<T>>
+  | OnDemandAsync<AssociativeRecordData.Immediate<T>>;
 export namespace AssociativeRecordData {
   export type NotAsync<T> = Exclude<AssociativeRecordData<T>, Async<any>>;
   export type Immediate<T> =

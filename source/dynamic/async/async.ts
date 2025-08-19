@@ -37,13 +37,13 @@ export function Async<T, S> (arg: PromiseLike<T> | Async.PromiseInit<T> | Async.
     : Async.fromPromise(arg);
 }
 export namespace Async {
-  export interface StatefulDriver<T, S = void> {
+  export interface StatefulDriver<T, S = any> {
     /**
      * Called immediately upon construction of the new `Async` instance.
      * @param resolve A function that must be called with the result of the asynchronous operation.
      */
     initialize (resolve: (result: T) => void, reject: (reason?: any) => void): S;
-    release (state: S): void;
+    release? (state: S): void;
   }
   export namespace Driver {
     export interface WithAsyncInitializer<T> {

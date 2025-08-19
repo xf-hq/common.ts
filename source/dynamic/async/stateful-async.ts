@@ -1,3 +1,4 @@
+import { dispose, isDisposable } from '../../general/disposables';
 import { Async } from './async';
 import { BaseAsync } from './common';
 
@@ -97,6 +98,8 @@ export class StatefulAsync<T, S> extends BaseAsync<T> {
   override [Symbol.dispose] () {
     if (this.#disposed) return;
     this.#disposed = true;
-    this.#driver.release(this.#state);
+    if ('release' in this.#driver) this.#driver.release(this.#state);
+    else if (this.#state instanceof AbortController) this.#state.abort();
+    else if (isDisposable(this.#state)) dispose(this.#state);
   }
 }
