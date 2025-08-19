@@ -3,9 +3,10 @@ import type { cmsg } from '../browser/console/console-message';
 import { DisposableGroup, dispose } from '../general/disposables';
 import { throwError } from '../general/errors';
 import { FnCT } from '../general/factories-and-latebinding';
-import { isDefined, isFunction, isNonClassFunction, isNotNull, isNull, isObject, isString, isUndefined } from '../general/type-checking';
+import { isClass, isDefined, isFunction, isNonClassFunction, isNotNull, isNull, isObject, isString, isUndefined } from '../general/type-checking';
 import { inls } from '../primitive';
 import { Compositional } from './compositional/compositional';
+import type { ConsoleLogger } from './logging';
 
 /**
  * To construct a new root context:
@@ -124,6 +125,9 @@ export namespace Context {
     [CacheKey]?: symbol;
   }
   export namespace Driver {
+    export const For = makeCache(<C extends abstract new (...args: any) => any>(ctor: C): Driver<InstanceType<C>> => ({
+      label: ctor.name,
+    }));
 
     export type ResolveQuery<A extends any[], Q> = (queryType: Query.Type<A, Q>, binding: ContextBinding, ...args: A) => Query.Result<Q> | null;
 
@@ -280,7 +284,7 @@ export namespace Context {
     }
   }
 
-  export type Type<TBindingData = unknown> = Driver<TBindingData> | Type.NS<TBindingData>;
+  export type Type<TBindingData = unknown> = Driver<TBindingData> | Type.NS<TBindingData> | AnyAbstractConstructor<any, TBindingData>;
   export namespace Type {
     export type NS<TBindingData> = NS.OfDriver<TBindingData> | NS.OfContextDriver<TBindingData>;
     export namespace NS {
@@ -293,6 +297,7 @@ export namespace Context {
       if (CacheKey in type) return type;
       if ('Driver' in type) return type.Driver;
       if ('ContextDriver' in type) return type.ContextDriver;
+      if (isClass(type)) return Driver.For(type);
       return type;
     }
   }
@@ -646,11 +651,12 @@ export namespace Context {
         this.eventDispatcher.dispatch(event);
       }
 
+      execute<TContext extends ImmediateContext, A extends any[], R> (this: TContext, target: (context: TContext, ...args: A) => R, ...args: A): R;
       execute<TContext extends ImmediateContext, A extends any[], R> (this: TContext, target: { execute: (context: TContext, ...args: A) => R }, ...args: A): R;
-      execute<TContext extends ImmediateContext, A extends any[], R> (this: TContext, branchId: string, target: { execute: (context: TContext, ...args: A) => R }, ...args: A): R;
+      execute<TContext extends ImmediateContext, A extends any[], R> (this: TContext, branchId: string, target: ((context: TContext, ...args: A) => R) | { execute: (context: TContext, ...args: A) => R }, ...args: A): R;
       execute (arg0: unknown) {
         type F = (context: Context, ...args: any[]) => any;
-        let target: { execute: F };
+        let target: F | { execute: F };
         let args: any[];
         let context: ImmediateContext;
         if (isString(arg0)) {
@@ -660,11 +666,11 @@ export namespace Context {
           context = this.bind(EventDispatcher, dispatcher);
         }
         else {
-          target = arg0 as { execute: F };
+          target = arg0 as F | { execute: F };
           args = Array.prototype.slice.call(arguments, 1);
           context = this;
         }
-        return target.execute(context, ...args);
+        return 'execute' in target ? target.execute(context, ...args) : target(context, ...args);
       }
 
       /**
@@ -724,7 +730,8 @@ export namespace Context {
        */
       unbind<TDriver extends Driver> (driver: TDriver): InferBindingData<TDriver>;
       unbind<TType extends Type> (type: TType): Type.InferBindingData<TType>;
-      unbind (arg: Driver | Type) {
+      unbind<TCtor extends abstract new (...args: any[]) => any> (ctor: TCtor): InstanceType<TCtor>;
+      unbind (arg: Driver | Type | AnyAbstractConstructor) {
         const driver = Type.unbox(arg);
         return this._ImmediateContext_getCached(driver) ?? this._ImmediateContext_setCached(driver, this._binding.view.unbind(driver));
       }
@@ -1344,8 +1351,7 @@ export namespace Context {
 export import ImmediateContext = Context.Immediate;
 export import ContextDriver = Context.Driver;
 export import ContextQuery = Context.Query;
-import type { ConsoleLogger } from './logging';
-import { cache } from 'react';
+import { makeCache } from '../general/ids-and-caching';
 
 /**
  * Just for reference in case I want to do something similar in the future. All that `cmsg` formatting is time
