@@ -77,7 +77,7 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
       }
       this.#hold = undefined;
       if (this.isFinalized) {
-        this.finalizeInternal();
+        this.freezeInternal();
       }
       this.#emitter.release();
     }
@@ -100,20 +100,20 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
       // We trigger the actual finalization event only after the change signal has been emitted (above), otherwise we'll
       // end up having to violate our own rules by telling subscribers that the value has changed after we've told them
       // that it has been finalized.
-      if (final) this.finalizeInternal();
+      if (final) this.freezeInternal();
     }
     return true;
   }
 
-  finalize () {
+  freeze () {
     if (this.isFinalized) return;
     this.#isManuallyFinalized = true;
     if (!this.#status.isOnHold) {
-      this.finalizeInternal();
+      this.freezeInternal();
     }
   }
 
-  private finalizeInternal () {
+  private freezeInternal () {
     const finalization = this.#finalization ??= Async.create();
     finalization.set(true);
     this.#emitter.end();

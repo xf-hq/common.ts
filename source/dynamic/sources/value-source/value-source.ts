@@ -88,7 +88,7 @@ export namespace ValueSource {
     hold (): void;
     release (): void;
     set (value: T, final?: boolean): boolean;
-    finalize (): void;
+    freeze (): void;
   }
   export function create<T> (initialValue: T, onDemandChanged?: DemandObserver<T>): Manual<T> {
     return new ManualValueSource(initialValue, onDemandChanged);

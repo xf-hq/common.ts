@@ -2,6 +2,7 @@ import { dispose } from '../../../general/disposables';
 import { returnVoid } from '../../../general/presets';
 import { isFunction } from '../../../general/type-checking';
 import type { Subscribable } from '../../core';
+import type { NumberSource } from '../value-source/number-source';
 import { ArraySource } from './array-source';
 import { ArraySourceTag } from './common';
 import { ConcatArraySource } from './concat-array-source';
@@ -15,6 +16,8 @@ export class FluentArraySource<T> implements ArraySource.Fluent<T> {
   constructor (private readonly _source: ArraySource<T>) {}
 
   get [ArraySourceTag] (): true { return true; }
+
+  get length (): NumberSource { return ArraySource.length(this._source); }
 
   subscribe<A extends any[]> (subscriber: Subscribable.Subscriber<[event: ArraySource.Event<T>], A>, ...args: A): ArraySource.Subscription<T>;
   subscribe<V, A extends any[]> (abort: AbortSignal, source: ArraySource<V>, receiver: ArraySource.Subscriber<V, A> | ArraySource.EventReceiver<T>, ...args: A): ArraySource.Subscription<V>;

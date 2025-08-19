@@ -1,9 +1,11 @@
 import { createChildAbortController } from '../../../general/abort-signals';
 import { dispose, disposeOnAbort } from '../../../general/disposables';
+import { makeCache } from '../../../general/ids-and-caching';
 import { returnVoid } from '../../../general/presets';
 import { isArray, isFunction } from '../../../general/type-checking';
 import { Subscribable } from '../../core/subscribable';
 import type { MapSource } from '../map-source/map-source';
+import { NumberSource } from '../value-source/number-source';
 import { ArraySourceTag } from './common';
 import { ConcatArraySource } from './concat-array-source';
 import { FilteredArraySource } from './filtered-array-source';
@@ -12,6 +14,7 @@ import { ForEachArraySourceElement } from './for-each-array-source-element';
 import { ManualArraySource } from './manual-array-source';
 import { MapSourceEntriesArraySource } from './map-source-entries-array-source';
 import { MappedArraySource } from './mapped-array-source';
+import { ArrayLengthDemandObserver } from './meta/array-length-source';
 import { SortedArraySource } from './sorted-array-source';
 import { StatefulMappedArraySource } from './stateful-mapped-array-source';
 
@@ -210,6 +213,7 @@ export namespace ArraySource {
   }
 
   export interface Fluent<T> extends ArraySource<T> {
+    readonly length: NumberSource;
     forEach (abortSignal: AbortSignal, callback: (value: T, abortSignal: AbortSignal) => void): void;
     map<U> (f: (a: T) => U): FluentArraySource<U>;
     map<U, TItemState, TCommonState = void> (mapper: ArraySource.StatefulMapper<T, U, TItemState, TCommonState>): FluentArraySource<U>;
@@ -228,6 +232,8 @@ export namespace ArraySource {
   export function fluent<T> (source: ArraySource<T>): Fluent<T> {
     return source instanceof FluentArraySource ? source : new FluentArraySource(source);
   }
+
+  export const length = makeCache((source: ArraySource<any>): NumberSource => NumberSource.create(0, new ArrayLengthDemandObserver(source)));
 
   export function forEach<T> (abortSignal: AbortSignal, source: ArraySource<T>, callback: (value: T, abortSignal: AbortSignal) => void): void {
     subscribe(abortSignal, source, new ForEachArraySourceElement(abortSignal, callback));

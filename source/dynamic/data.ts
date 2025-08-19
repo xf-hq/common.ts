@@ -122,7 +122,6 @@ export namespace FixedRecordData {
 
   export function getValue<TRecord extends { [P in K]: ValueData<V> }, K extends keyof TRecord, V> (key: K, source: FixedRecordData<TRecord>): V;
   export function getValue (key: any, source: FixedRecordData<any>) {
-    console.debug(`source:`, source);
     if (isFixedRecordSource(source)) return FixedRecordSource.getAndUnboxValueDataField(key, source);
     if (isAsync(source)) return Async.map((_source: any) => getValue(key, _source), source);
     if (isOnDemandAsync(source)) return source.map((_source: any) => getValue(key, _source));
