@@ -34,7 +34,7 @@ export interface FixedRecordSource<TRecord extends AnyRecord, TEventPerField ext
 export namespace FixedRecordSource {
   export type RecordOf<TSource extends FixedRecordSource<any, any>> = TSource extends FixedRecordSource<infer TRecord, any> ? TRecord : never;
   export type Keys<TSource extends FixedRecordSource<any, any>> = keyof RecordOf<TSource>;
-  export type ValueOf<TSource extends FixedRecordSource<any, any>, TKey extends Keys<TSource>> = RecordOf<TSource>[TKey] extends ValueData<infer V> ? V : never;
+  export type ValueOf<TSource extends FixedRecordSource<any, any>, TKey extends Keys<TSource>> = RecordOf<TSource>[TKey] extends ValueData<any> ? RecordOf<TSource>[TKey] : never;
 
   export type Subscriber<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown>, A extends any[]> = Receiver<TRecord, TEventPerField, A> | Receiver<TRecord, TEventPerField, A>['event'];
   export interface Receiver<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown>, A extends any[]> extends Subscribable.Receiver<[event: FixedRecordSource.Event<TRecord, TEventPerField>], A> {
