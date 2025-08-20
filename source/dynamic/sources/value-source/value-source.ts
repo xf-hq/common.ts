@@ -1,19 +1,15 @@
 import { disposeOnAbort } from '../../../general/disposables';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
-import { BinaryOperationSource, UnaryOperationSource } from './base-operation-value-sources';
 import { ValueSourceTag } from './common';
 import { ConstantValueSource } from './constant-value-source';
+import { ComputedValueSourceA1 } from './computed-value-source-a1';
+import { ComputedValueSourceA2 } from './computed-value-source-a2';
 import { ManualCounterSource, ManualValueSource } from './manual-value-source';
 import type { NumberSource } from './number-source';
 
 export function isValueSource (value: any): value is ValueSource {
   return value?.[ValueSourceTag] === true;
-}
-export namespace isValueSource {
-  export function Immediate<T> (value: ValueSource<T>): value is ValueSource.Immediate<T> {
-    return 'value' in value;
-  }
 }
 
 /**
@@ -34,6 +30,10 @@ export interface ValueSource<T = any> {
   subscribe<A extends any[]> (receiver: ValueSource.Receiver<T, A> | ValueSource.Receiver<T, A>['event'], ...args: A): ValueSource.Subscription<T>;
 }
 export namespace ValueSource {
+  export function isImmediate<T> (value: ValueSource<T>): value is ValueSource.Immediate<T> {
+    return 'value' in value && 'finalization' in value && 'isFinalized' in value && 'status' in value;
+  }
+
   export type SubscribeCallback<T, A extends any[]> = (subscription: Subscription<T>, ...args: A) => Subscriber<T, A>;
   export type Subscriber<T, A extends any[]> = Receiver<T, A> | Receiver<T, A>['event'];
   export interface Receiver<T, A extends any[] = []> extends Subscribable.Receiver<[value: T], A> {
@@ -110,14 +110,14 @@ export namespace ValueSource {
   export function map<A, B> (compute: (a: A) => B): (a: ValueSource<A>) => ValueSource<B>;
   export function map<A, B> (compute: (a: A) => B, a: ValueSource<A>): ValueSource<B>;
   export function map<A, B> (compute: (a: A) => B, a?: ValueSource<A>): any {
-    if (arguments.length === 1) return UnaryOperationSource.define(compute);
-    return new UnaryOperationSource(a!, { compute });
+    if (arguments.length === 1) return ComputedValueSourceA1.define(compute);
+    return new ComputedValueSourceA1(a!, { compute });
   }
 
   export function map2<A, B, C> (compute: (a: A, b: B) => C): (a: ValueSource<A>, b: ValueSource<B>) => ValueSource<C>;
   export function map2<A, B, C> (compute: (a: A, b: B) => C, a: ValueSource<A>, b: ValueSource<B>): ValueSource<C>;
   export function map2<A, B, C> (compute: (a: A, b: B) => C, a?: ValueSource<A>, b?: ValueSource<B>): any {
-    if (arguments.length === 1) return BinaryOperationSource.define(compute);
-    return new BinaryOperationSource(a!, b!, { compute });
+    if (arguments.length === 1) return ComputedValueSourceA2.define(compute);
+    return new ComputedValueSourceA2(a!, b!, { compute });
   }
 }

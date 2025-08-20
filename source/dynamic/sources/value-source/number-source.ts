@@ -1,4 +1,5 @@
-import { BinaryOperationSource, UnaryOperationSource } from './base-operation-value-sources';
+import { ComputedValueSourceA1 } from './computed-value-source-a1';
+import { ComputedValueSourceA2 } from './computed-value-source-a2';
 import { ValueSource } from './value-source';
 
 export interface NumberSource extends ValueSource<number> {}
@@ -25,10 +26,10 @@ export namespace NumberSource {
   export const One = ValueSource.constant(1);
   export const Two = ValueSource.constant(2);
 
-  export const negate = UnaryOperationSource.define<number>(value => -value);
-  export const add = BinaryOperationSource.defineCombinedLTR<number>((left, right) => left + right);
-  export const subtract = BinaryOperationSource.defineCombinedLTR<number>((left, right) => left - right);
-  export const multiply = BinaryOperationSource.defineCombinedLTR<number>((left, right) => left * right);
-  export const divide = BinaryOperationSource.defineCombinedLTR<number>((left, right) => left / right);
-  export const modulo = BinaryOperationSource.defineCombinedLTR<number>((left, right) => left % right);
+  export const negate = ComputedValueSourceA1.define<number>(value => -value);
+  export const add = ComputedValueSourceA2.defineCombinedLTR<number>((left, right) => left + right);
+  export const subtract = ComputedValueSourceA2.defineCombinedLTR<number>((left, right) => left - right);
+  export const multiply = ComputedValueSourceA2.defineCombinedLTR<number>((left, right) => left * right);
+  export const divide = ComputedValueSourceA2.defineCombinedLTR<number>((left, right) => left / right);
+  export const modulo = ComputedValueSourceA2.defineCombinedLTR<number>((left, right) => left % right);
 }

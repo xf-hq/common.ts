@@ -1,11 +1,13 @@
-import { dispose, isDisposable } from '../../general/disposables';
+import { dispose, disposeOnAbort, isDisposable } from '../../general/disposables';
+import { isDefined } from '../../general/type-checking';
 import { Async } from './async';
 import { BaseAsync } from './common';
 
 export class StatefulAsync<T, S> extends BaseAsync<T> {
-  static load<T, S> (driver: Async.StatefulDriver<T, S>) {
+  static load<T, S> (driver: Async.StatefulDriver<T, S>, abortSignal?: AbortSignal) {
     const instance = new StatefulAsync(driver);
     instance.initialize();
+    if (isDefined(abortSignal)) disposeOnAbort(abortSignal, instance);
     return instance;
   }
   constructor (driver: Async.StatefulDriver<T, S>) {

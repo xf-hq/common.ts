@@ -57,7 +57,7 @@ export namespace Async {
 
   export type Manual<T> = ManualAsync<T>;
   export function create<T> () { return new ManualAsync<T>(); }
-  export function using<T, S> (driver: StatefulDriver<T, S>): Async<T> { return StatefulAsync.load(driver); }
+  export function using<T, S> (driver: StatefulDriver<T, S>, abortSignal?: AbortSignal): Async<T> { return StatefulAsync.load(driver, abortSignal); }
   export function fromPromise<T> (promise: PromiseLike<T> | PromiseInit<T>): Async<T> {
     if (isFunction(promise)) promise = new Promise<T>(promise);
     return AsyncFromPromise.create(promise);
