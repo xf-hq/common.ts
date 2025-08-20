@@ -28,13 +28,14 @@ import type { ConsoleLogger } from './logging';
  * // Define your context interface:
  * export interface MyCustomContext extends Compositional.ExtractInterface<typeof MyCustomContext.InterfaceType> {}
  * export namespace MyCustomContext {
- *   // Optionally export a function to make it easy to define other context interfaces that extend this one:
- *   export function extend<TCallback extends Compositional.Define.Callback<MyCustomContext, MyCustomContext, Context.Immediate.Class.Env, Context.Immediate.Class.CtorArgs>> (callback: TCallback) {
- *     return InterfaceType.extend(callback);
- *   }
+ *   // Optionally export a function to make it easy to define other context interfaces that extend this one. This is
+ *   // really just an alias to `InterfaceType.extend` and makes for slightly nicer and more concise code at the call
+ *   // site, e.g. `const MyExtendedContextInterfaceType = MyCustomContext.extend(...)`;
+ *   export const extend = LazyF((): InterfaceType['extend'] => bindMethod(InterfaceType.extend, InterfaceType));
+ *
  *   export type InterfaceType = typeof InterfaceType;
- *   export const InterfaceType = Context.defineInterface(($Base) => {
- *     return class MyCustomContext extends $Base.EntityInstance {
+ *   export const InterfaceType = Context.defineInterface((InterfaceType) => {
+ *     return class MyCustomContext extends InterfaceType.BaseClass {
  *       // `<TContext extends MyCustomContext>` isn't technically always applicable, but can be helpful in some cases
  *       // where TypeScript gets confused about the type of `this` in a method. As the details around this can be easy
  *       // to forget, I have adopted the practice of simply including it on most methods as a convention. It doesn't
@@ -466,8 +467,8 @@ export namespace Context {
   /**
    * @example
    * export interface MyContext extends Compositional.ExtractInterface<typeof MyContext> {}
-   * export const MyContext = Context.defineInterface(($Context) => (
-   *  class MyContext extends $Context.EntityInstance {
+   * export const MyContext = Context.defineInterface((InterfaceType) => (
+   *  class MyContext extends InterfaceType.BaseClass {
    *   // ...
    *  }
    * )
@@ -478,7 +479,18 @@ export namespace Context {
 
   /**
    * @example
-   * const FooBarBazContext = Context.compose(FooContext, BarContext, BazContext);
+   * // Combine multiple interface types independently of each other
+   * const MyInterfaceType = Context.compose(FooContext, BarContext, BazContext);
+   *
+   * @example
+   * // Compose and then extend with functionality that is aware of all the composed types
+   * const MyInterfaceType = Context.compose(FooContext, BarContext).extend((InterfaceType) => {
+   *   return class BazContext extends InterfaceType.BaseClass {
+   *   baz () {
+   *     this.foo(); // Inherited from FooContext
+   *     this.bar(); // Inherited from BarContext
+   *   }
+   * });
    */
   export function compose<A extends Compositional.InterfaceTypeRef.FromClass<any, ImmediateContext.Class>[]> (...targets: A) {
     const type = ImmediateContext.Class.compose(targets);
@@ -525,7 +537,7 @@ export namespace Context {
     const _uniqueCount_ = Symbol('ImmediateContext/uniqueCount');
 
     export type InterfaceType = typeof InterfaceType;
-    export const InterfaceType = Class.define((type) => class _ImmediateContext extends type.EntityInstance {
+    export const InterfaceType = Class.define((InterfaceType) => class _ImmediateContext extends InterfaceType.BaseClass {
       [_abort_]?: Abort;
       [_locked_] = false;
       [_uniqueCount_]: number;
@@ -601,7 +613,7 @@ export namespace Context {
         if ('bindContext' in arg0) return arg0.bindContext(this, ...rest);
         const driver = Type.unbox(arg0);
         const binding = ContextBinding.create(this._binding, driver, rest.length === 0 ? undefined : rest[0]);
-        return type.entityClass.constructSameAs(this, [binding]);
+        return InterfaceType.entityClass.constructSameAs(this, [binding]);
       }
       bindAs<TContext extends ImmediateContext> (contextInterfaceType: Compositional.EntityClass.ToInterfaceType<TContext, Class>, driver: Driver<void>): TContext;
       bindAs<TContext extends ImmediateContext, TDriver extends Driver> (contextInterfaceType: Compositional.EntityClass.ToInterfaceType<TContext, Class>, driver: TDriver, bindingData: InferBindingData<TDriver>): TContext;
@@ -618,13 +630,13 @@ export namespace Context {
         if ('InterfaceType' in contextInterfaceType) contextInterfaceType = contextInterfaceType.InterfaceType;
         const driver = Type.unbox(arg1);
         const binding = ContextBinding.create(this._binding, driver, bindingData);
-        if (contextInterfaceType.isExpressedBy(this)) return type.entityClass.constructSameAs(this, [binding]);
+        if (contextInterfaceType.isExpressedBy(this)) return InterfaceType.entityClass.constructSameAs(this, [binding]);
         return contextInterfaceType.construct(binding);
       }
 
       bindAll<B extends readonly BindPair<unknown>[]> (bindings: BindPairs<B>): this {
         const binding = this._ImmediateContext_bindAll(bindings);
-        return type.entityClass.constructSameAs(this, [binding]);
+        return InterfaceType.entityClass.constructSameAs(this, [binding]);
       }
       bindAllAs<TContext extends ImmediateContext, B extends readonly BindPair<unknown>[]> (contextInterfaceType: InterfaceType.OrNS<TContext>, bindings: BindPairs<B>): TContext {
         const binding = this._ImmediateContext_bindAll(bindings);

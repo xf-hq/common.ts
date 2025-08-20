@@ -75,7 +75,7 @@ export namespace Compositional {
    * @example
    * ```ts
    * type Foo = Compositional.ExtractInterface<typeof Foo>; // -> FooInterface
-   * const Foo = $MyEntityClass.defineInterface((type) => class FooInterface extends type.EntityInstance {
+   * const Foo = $MyEntityClass.defineInterface((InterfaceType) => class FooInterface extends InterfaceType.BaseClass {
    *   // interface members here...
    * });
    * ```
@@ -238,12 +238,12 @@ export namespace Compositional {
        *   constructor (protected readonly _bar: string) {}
        * });
        * // Define an interface for it:
-       * const Foo = $MyEntityClass.defineInterface(($Foo) => class Foo extends $Foo.EntityInstance {
+       * const Foo = $MyEntityClass.defineInterface((InterfaceType) => class Foo extends InterfaceType.BaseClass {
        *   setBar (value: string) { this._bar = value; } // ✔️ Success! No type errors on access to `_bar`.
        * });
        * ```
        */
-      public readonly EntityInstance: abstract new () => TBaseInterface & TEnv = class {} as any;
+      public readonly BaseClass: abstract new () => TBaseInterface & TEnv = class {} as any;
 
       get name () { return this.#name; }
       get entityClass () { return this.#entityClass; }

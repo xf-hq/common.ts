@@ -40,7 +40,7 @@ function OfficeSpace () {
   }
 
   type Programmer = Compositional.ExtractInterface<typeof Programmer>;
-  const Programmer = WorkerClass.define(($Programmer) => class Programmer extends $Programmer.EntityInstance {
+  const Programmer = WorkerClass.define((InterfaceType) => class Programmer extends InterfaceType.BaseClass {
     get didRememberToFileTPSReport (): boolean { return false; /* placeholder */ }
     get isBusyWorking (): boolean { return false; /* placeholder */ }
 
@@ -70,7 +70,7 @@ function OfficeSpace () {
   });
 
   type Supervisor = Compositional.ExtractInterface<typeof Supervisor>;
-  const Supervisor = WorkerClass.define(($Supervisor) => class Supervisor extends $Supervisor.EntityInstance {
+  const Supervisor = WorkerClass.define((InterfaceType) => class Supervisor extends InterfaceType.BaseClass {
     approachProgrammer (programmer: Programmer, distanceMetres: number) {
       this.logger.log(this, `Approaching ${programmer.name} (distance: ${distanceMetres}m)`);
       programmer.onSupervisorApproaching(distanceMetres);
@@ -132,7 +132,7 @@ function OfficeSpace () {
     // The above approach works well when we have a number of independent interfaces we want to merge into a single
     // interface, but sometimes we want to define an interface as an extension of another interface, which means the
     // interface members we're defining will have awareness of the interface being extended.
-    const ObstinateProgrammer = Programmer.extend(($ObstinateProgrammer) => class ObstinateProgrammer extends $ObstinateProgrammer.EntityInstance {
+    const ObstinateProgrammer = Programmer.extend((InterfaceType) => class ObstinateProgrammer extends InterfaceType.BaseClass {
       refuseToWriteCode (reason: string) {
         if (this.isBusyWorking) {
           this.endWritingCode(`I refuse to write code because ${reason}`);
