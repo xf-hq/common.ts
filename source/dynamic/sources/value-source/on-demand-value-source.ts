@@ -3,18 +3,12 @@ import { IdGenerator } from '../../../general/ids-and-caching';
 import { isDefined } from '../../../general/type-checking';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
-import { ImmediateValueSourceTag, normalizeValueSourceReceiverArg, ValueSourceTag } from './common';
+import { normalizeValueSourceReceiverArg, ValueSourceTag } from './common';
 import { isValueSource, type ValueSource } from './value-source';
 
-export class ManualValueSource<T> implements ValueSource.Manual<T> {
-  constructor (initialValue: T, onDemandChanged?: ValueSource.Manual.DemandObserver<T>) {
-    if (isValueSource(initialValue)) {
-      throw new Error(`This looks like a mistake. The initial value should be a value, not a ValueSource.`);
-    }
-    this.#value = initialValue;
-    this.#emitter = onDemandChanged
-      ? new Subscribable.Controller(new DemandObserverAdapter(this, onDemandChanged))
-      : new Subscribable.Controller();
+export class OnDemandValueSource<T> implements ValueSource<T> {
+  constructor (onDemandChanged: ValueSource.DemandObserver<T>) {
+    this.#emitter = new Subscribable.Controller(new DemandObserverAdapter(this, onDemandChanged));
   }
   id = IdGenerator.global();
   readonly #emitter: Subscribable.Controller<[value: T]>;
@@ -26,7 +20,6 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
   #hold: { unchangedValue: T } | undefined;
 
   get [ValueSourceTag] () { return true as const; }
-  get [ImmediateValueSourceTag] () { return true as const; }
 
   get value (): T { return this.#value; }
   get finalization (): Async<true> { return this.#finalization ??= Async.create(); }
@@ -39,7 +32,7 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
 
   subscribe<A extends any[]> (receiver: ValueSource.Receiver<T, A> | ValueSource.Receiver<T, A>['event'], ...args: A): ValueSource.Subscription<T> {
     receiver = normalizeValueSourceReceiverArg(receiver);
-    const subscription = new ManualValueSource.Subscription(this, receiver, args);
+    const subscription = new OnDemandValueSource.Subscription(this, receiver, args);
 
     // Force the source to be in an online state before we do anything else, just in case the 'online' event would
     // lead to an initial value assignment. As soon as we invoke the callback it is likely that the caller will try to
@@ -121,12 +114,12 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
   }
 
   static Subscription = class Subscription<T> implements ValueSource.Subscription<T> {
-    constructor (source: ManualValueSource<T>, receiver: ValueSource.Receiver<T, any>, args: any[]) {
+    constructor (source: OnDemandValueSource<T>, receiver: ValueSource.Receiver<T, any>, args: any[]) {
       this.#source = source;
       this.#receiver = receiver;
       this.#args = args;
     }
-    readonly #source: ManualValueSource<T>;
+    readonly #source: OnDemandValueSource<T>;
     readonly #receiver: ValueSource.Receiver<T, any>;
     readonly #args: any[];
     #disposable: Disposable;
@@ -169,25 +162,13 @@ export class ManualValueSource<T> implements ValueSource.Manual<T> {
   };
 }
 
-export class ManualCounterSource extends ManualValueSource<number> implements ValueSource.Counter {
-  constructor (initialValue: number = 0) {
-    super(initialValue);
-    this.#initialValue = initialValue;
-  }
-  readonly #initialValue: number;
-
-  increment (amount = 1) { this.set(this.value + amount); }
-  decrement (amount = 1) { this.set(this.value - amount); }
-  reset () { this.set(this.#initialValue); }
-}
-
 class DemandObserverAdapter<T> implements Subscribable.DemandObserver.ListenerInterface<[value: T]> {
   constructor (
-    private readonly source: ValueSource.Manual<T>,
-    private readonly onDemandChanged: ValueSource.Manual.DemandObserver<T>
+    private readonly sink: ValueSource.Manual.Sink<T>,
+    private readonly onDemandChanged: ValueSource.DemandObserver<T>
   ) {}
-  online (): void { this.onDemandChanged.online?.(this.source); }
-  offline (): void { this.onDemandChanged.offline?.(this.source); }
-  onSubscribe (receiver: ValueSource.Receiver<T, unknown[]>): void { this.onDemandChanged.subscribe?.(this.source, receiver); }
-  onUnsubscribe (receiver: ValueSource.Receiver<T, unknown[]>): void { this.onDemandChanged.unsubscribe?.(this.source, receiver); }
+  online (): void { this.onDemandChanged.online?.(this.sink); }
+  offline (): void { this.onDemandChanged.offline?.(this.sink); }
+  onSubscribe (receiver: ValueSource.Receiver<T, unknown[]>): void { this.onDemandChanged.subscribe?.(this.sink, receiver); }
+  onUnsubscribe (receiver: ValueSource.Receiver<T, unknown[]>): void { this.onDemandChanged.unsubscribe?.(this.sink, receiver); }
 }

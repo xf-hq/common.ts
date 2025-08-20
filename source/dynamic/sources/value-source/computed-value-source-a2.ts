@@ -3,19 +3,19 @@ import { bindMethod } from '../../../general/functional';
 import { isFunction, isUndefined } from '../../../general/type-checking';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
-import { normalizeValueSourceReceiverArg, SubscriptionToImmediateValueSource, ValueSourceTag } from './common';
+import { ImmediateValueSourceTag, normalizeValueSourceReceiverArg, SubscriptionToImmediateValueSource, ValueSourceTag } from './common';
 import { ValueSource } from './value-source';
 
 export namespace ComputedValueSourceA2 {
   export interface Driver<A, B, C> { compute (left: A, right: B): C }
 }
-export class ComputedValueSourceA2<A, B = A, C = A> implements ValueSource.Immediate<C> {
+export class ComputedValueSourceA2<A, B = A, C = A> implements ValueSource.PossiblyImmediate<C> {
   static define<A, B, C> (compute: ComputedValueSourceA2.Driver<A, B, C> | ComputedValueSourceA2.Driver<A, B, C>['compute']): {
     (left: ValueSource.Immediate<A>, right: ValueSource.Immediate<B>): ValueSource.Immediate<C>;
     (left: ValueSource<A>, right: ValueSource<B>): ValueSource<C>;
   } {
     const driver = isFunction(compute) ? { compute } : compute;
-    return (left: ValueSource<A>, right: ValueSource<B>) => new ComputedValueSourceA2(left, right, driver);
+    return (left: ValueSource<A>, right: ValueSource<B>) => new ComputedValueSourceA2(left, right, driver) as ValueSource.Immediate<C>;
   }
   static defineCombinedLTR<T> (compute: ComputedValueSourceA2.Driver<T, T, T> | ComputedValueSourceA2.Driver<T, T, T>['compute'], sourceIfEmpty?: ValueSource<T>) {
     const empty = isUndefined(sourceIfEmpty) ? () => { throw new Error(`Cannot compute a binary operation with no sources.`); } : () => sourceIfEmpty;
@@ -50,6 +50,7 @@ export class ComputedValueSourceA2<A, B = A, C = A> implements ValueSource.Immed
   #finalization?: Async<true>;
 
   get [ValueSourceTag] () { return true as const; }
+  get [ImmediateValueSourceTag] () { return this.#left[ImmediateValueSourceTag] === true && this.#right[ImmediateValueSourceTag] === true; }
 
   get value (): C { return this.#current!.value; }
   // get finalization (): Async<true> { return this.#current!.finalization; }

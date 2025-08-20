@@ -7,7 +7,7 @@ export interface StringSource extends ValueSource<string> {}
 export namespace StringSource {
   export interface Receiver<A extends any[] = []> extends ValueSource.Receiver<string, A> {}
   export interface Subscription extends ValueSource.Subscription<string> {}
-  export type DemandObserver = ValueSource.DemandObserver<string>;
+  export type DemandObserver = ValueSource.Manual.DemandObserver<string>;
   export interface Immediate extends ValueSource.Immediate<string> {}
 
   const cache = new AssociativeWeakSet<string, ValueSource<string>>();
@@ -22,8 +22,11 @@ export namespace StringSource {
     }
   }
   export interface Manual extends ValueSource.Manual<string> {}
-  export function create (initialValue: string, onDemandChanged?: ValueSource.DemandObserver<string>): Manual {
+  export function create (initialValue: string, onDemandChanged?: ValueSource.Manual.DemandObserver<string>): Manual {
     return ValueSource.create(initialValue, onDemandChanged);
+  }
+  export function onDemand (onDemandChanged: ValueSource.DemandObserver<string>): StringSource {
+    return ValueSource.onDemand(onDemandChanged);
   }
 
   export const Empty = ValueSource.constant('');

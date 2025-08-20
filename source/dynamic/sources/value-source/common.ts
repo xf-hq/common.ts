@@ -4,6 +4,7 @@ import type { Async } from '../../async/async';
 import type { ValueSource } from './value-source';
 
 export const ValueSourceTag: unique symbol = Symbol('ValueSource');
+export const ImmediateValueSourceTag: unique symbol = Symbol('ValueSource.Immediate');
 
 export function normalizeValueSourceReceiverArg<T, A extends any[]> (
   receiverArg: ValueSource.Receiver<T, A> | ValueSource.Receiver<T, A>['event']
@@ -12,12 +13,12 @@ export function normalizeValueSourceReceiverArg<T, A extends any[]> (
 }
 
 export class SubscriptionToImmediateValueSource<T> implements ValueSource.Subscription<T> {
-  constructor (source: ValueSource.Immediate<T>, receiver: ValueSource.Receiver<T, any>, args: any[]) {
+  constructor (source: ValueSource.PossiblyImmediate<T>, receiver: ValueSource.Receiver<T, any>, args: any[]) {
     this.#source = source;
     this.#receiver = receiver;
     this.#args = args;
   }
-  readonly #source: ValueSource.Immediate<T>;
+  readonly #source: ValueSource.PossiblyImmediate<T>;
   readonly #receiver: ValueSource.Receiver<T, any>;
   readonly #args: any[];
   #disposable: Disposable;

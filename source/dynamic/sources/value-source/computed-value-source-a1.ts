@@ -3,19 +3,19 @@ import { bindMethod } from '../../../general/functional';
 import { isFunction } from '../../../general/type-checking';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
-import { normalizeValueSourceReceiverArg, SubscriptionToImmediateValueSource, ValueSourceTag } from './common';
+import { ImmediateValueSourceTag, normalizeValueSourceReceiverArg, SubscriptionToImmediateValueSource, ValueSourceTag } from './common';
 import { ValueSource } from './value-source';
 
 export namespace ComputedValueSourceA1 {
   export interface Driver<A, B> { readonly compute: (value: A) => B }
 }
-export class ComputedValueSourceA1<A, B> implements ValueSource.Immediate<B> {
+export class ComputedValueSourceA1<A, B> implements ValueSource.PossiblyImmediate<B> {
   static define<A, B = A> (compute: ComputedValueSourceA1.Driver<A, B> | ComputedValueSourceA1.Driver<A, B>['compute']): {
     (source: ValueSource.Immediate<A>): ValueSource.Immediate<B>;
     (source: ValueSource<A>): ValueSource<B>;
   } {
     const driver = isFunction(compute) ? { compute } : compute;
-    return (source: ValueSource<A>) => new ComputedValueSourceA1(source, driver);
+    return (source: ValueSource<A>) => new ComputedValueSourceA1(source, driver) as ValueSource.Immediate<B>;
   }
   constructor (source: ValueSource<A>, driver: ComputedValueSourceA1.Driver<A, B>) {
     this.#source = source;
@@ -32,6 +32,7 @@ export class ComputedValueSourceA1<A, B> implements ValueSource.Immediate<B> {
   } | null = null;
 
   get [ValueSourceTag] () { return true as const; }
+  get [ImmediateValueSourceTag] () { return this.#source[ImmediateValueSourceTag] === true; }
 
   get value (): B { return this.#current!.value; }
   get finalization (): Async<true> { return this.#current!.finalization; }

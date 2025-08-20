@@ -6,12 +6,15 @@ export interface BooleanSource extends ValueSource<boolean> {}
 export namespace BooleanSource {
   export interface Receiver<A extends any[] = []> extends ValueSource.Receiver<boolean, A> {}
   export interface Subscription extends ValueSource.Subscription<boolean> {}
-  export type DemandObserver = ValueSource.DemandObserver<boolean>;
+  export type DemandObserver = ValueSource.Manual.DemandObserver<boolean>;
   export interface Immediate extends ValueSource.Immediate<boolean> {}
 
   export interface Manual extends ValueSource.Manual<boolean> {}
-  export function create (initialValue: boolean, onDemandChanged?: ValueSource.DemandObserver<boolean>): Manual {
+  export function create (initialValue: boolean, onDemandChanged?: ValueSource.Manual.DemandObserver<boolean>): Manual {
     return ValueSource.create(initialValue, onDemandChanged);
+  }
+  export function onDemand (onDemandChanged: ValueSource.DemandObserver<boolean>): BooleanSource {
+    return ValueSource.onDemand(onDemandChanged);
   }
 
   export const True = ValueSource.constant(true as const);

@@ -1,12 +1,13 @@
 import { disposeOnAbort } from '../../../general/disposables';
 import { Async } from '../../async/async';
 import { Subscribable } from '../../core/subscribable';
-import { ValueSourceTag } from './common';
-import { ConstantValueSource } from './constant-value-source';
+import { ImmediateValueSourceTag, ValueSourceTag } from './common';
 import { ComputedValueSourceA1 } from './computed-value-source-a1';
 import { ComputedValueSourceA2 } from './computed-value-source-a2';
+import { ConstantValueSource } from './constant-value-source';
 import { ManualCounterSource, ManualValueSource } from './manual-value-source';
 import type { NumberSource } from './number-source';
+import { OnDemandValueSource } from './on-demand-value-source';
 
 export function isValueSource (value: any): value is ValueSource {
   return value?.[ValueSourceTag] === true;
@@ -30,8 +31,8 @@ export interface ValueSource<T = any> {
   subscribe<A extends any[]> (receiver: ValueSource.Receiver<T, A> | ValueSource.Receiver<T, A>['event'], ...args: A): ValueSource.Subscription<T>;
 }
 export namespace ValueSource {
-  export function isImmediate<T> (value: ValueSource<T>): value is ValueSource.Immediate<T> {
-    return 'value' in value && 'finalization' in value && 'isFinalized' in value && 'status' in value;
+  export function isImmediate<T> (source: ValueSource<T>): source is ValueSource.Immediate<T> {
+    return source[ImmediateValueSourceTag] === true;
   }
 
   export type SubscribeCallback<T, A extends any[]> = (subscription: Subscription<T>, ...args: A) => Subscriber<T, A>;
@@ -49,10 +50,10 @@ export namespace ValueSource {
     echo (): this;
   }
   export interface DemandObserver<T> {
-    online? (source: Manual<T>): void;
-    offline? (source: Manual<T>): void;
-    subscribe? (source: Manual<T>, receiver: Receiver<T, unknown[]>): void;
-    unsubscribe? (source: Manual<T>, receiver: Receiver<T, unknown[]>): void;
+    online? (source: Manual.Sink<T>): void;
+    offline? (source: Manual.Sink<T>): void;
+    subscribe? (source: Manual.Sink<T>, receiver: Receiver<T, unknown[]>): void;
+    unsubscribe? (source: Manual.Sink<T>, receiver: Receiver<T, unknown[]>): void;
   }
 
   export function subscribe<T, A extends any[]> (source: ValueSource<T>, receiver: Subscriber<T, A>, ...args: A): ValueSource.Subscription<T>;
@@ -79,19 +80,35 @@ export namespace ValueSource {
   }
 
   export interface Immediate<T = any> extends ValueSource<T> {
+    get [ImmediateValueSourceTag] (): true;
     get value (): T;
     get finalization (): Async<true>;
     get isFinalized (): boolean;
     get status (): Subscribable.DemandStatus;
   }
-  export interface Manual<T = unknown> extends Immediate<T> {
-    hold (): void;
-    release (): void;
-    set (value: T, final?: boolean): boolean;
-    freeze (): void;
+  export interface PossiblyImmediate<T> extends Omit<ValueSource.Immediate<T>, typeof ImmediateValueSourceTag> {
+    get [ImmediateValueSourceTag] (): boolean;
   }
-  export function create<T> (initialValue: T, onDemandChanged?: DemandObserver<T>): Manual<T> {
+  export interface Manual<T = unknown> extends Immediate<T>, Manual.Sink<T> {}
+  export namespace Manual {
+    export interface Sink<T> {
+      hold (): void;
+      release (): void;
+      set (value: T, final?: boolean): boolean;
+      freeze (): void;
+    }
+    export interface DemandObserver<T> extends ValueSource.DemandObserver<T> {
+      online? (source: Manual<T>): void;
+      offline? (source: Manual<T>): void;
+      subscribe? (source: Manual<T>, receiver: Receiver<T, unknown[]>): void;
+      unsubscribe? (source: Manual<T>, receiver: Receiver<T, unknown[]>): void;
+    }
+  }
+  export function create<T> (initialValue: T, onDemandChanged?: Manual.DemandObserver<T>): Manual<T> {
     return new ManualValueSource(initialValue, onDemandChanged);
+  }
+  export function onDemand<T> (onDemandChanged: DemandObserver<T>): ValueSource<T> {
+    return new OnDemandValueSource(onDemandChanged);
   }
 
   export interface Counter extends NumberSource.Manual {
