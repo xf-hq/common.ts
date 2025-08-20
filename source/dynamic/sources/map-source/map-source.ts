@@ -28,7 +28,7 @@ export interface MapSource<K, V> {
   subscribe<A extends any[]> (onChange: MapSource.Subscriber<K, V, A>, ...args: A): MapSource.Subscription<K, V>;
 }
 export namespace MapSource {
-  export type Subscriber<K, V, A extends any[] = []> = Subscribable.Subscriber<[event: MapSource.Event<K, V>], A>;
+  export type Subscriber<K, V, A extends any[] = []> = Subscribable.Subscriber<[event: MapSource.Event<K, V>], A> | Receiver<K, V, A>;
   export interface Receiver<K, V, A extends any[] = []> extends Subscribable.Receiver<[event: MapSource.Event<K, V>], A> {
     init? (subscription: MapSource.Subscription<K, V>, ...args: A): void;
   }

@@ -1,17 +1,18 @@
 import { Async, isAsync } from '../../async/async';
-import { isOnDemandAsync } from '../../async/on-demand-async';
+import { isOnDemandAsync, OnDemandAsync } from '../../async/on-demand-async';
 import { FixedRecordSource, isFixedRecordSource } from '../../sources';
 import type { ValueData } from '../values';
-import type { AsyncData } from '../variant-types';
 
 export type FixedRecordData<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
-  | FixedRecordData.Immediate<TRecord, TEventPerField>
-  | AsyncData<FixedRecordData.Immediate<TRecord, TEventPerField>>;
+  | FixedRecordData.ExplicitAsync<TRecord, TEventPerField>
+  | FixedRecordData.NotAsync<TRecord, TEventPerField>;
 export namespace FixedRecordData {
-  export type IsAsync<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
-    | Extract<FixedRecordData<TRecord, TEventPerField>, AsyncData>;
+  export type ExplicitAsync<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
+    | Async<NotAsync<TRecord, TEventPerField>>
+    | OnDemandAsync<NotAsync<TRecord, TEventPerField>>;
   export type NotAsync<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
-    | Exclude<FixedRecordData<TRecord, TEventPerField>, AsyncData>;
+    | FixedRecordSource<TRecord, TEventPerField>
+    | TRecord;
   export type Immediate<TRecord extends AnyRecord, TEventPerField extends MapRecord<TRecord, unknown> = MapRecord<TRecord, unknown>> =
     | FixedRecordSource.Immediate<TRecord, TEventPerField>
     | TRecord;

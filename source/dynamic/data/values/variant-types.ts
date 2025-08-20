@@ -9,7 +9,7 @@ import type { StringData } from './string-data';
  */
 export type BasicPrimitiveData = StringData | NumberData | BooleanData;
 export namespace BasicPrimitiveData {
-  export type IsAsync = Exclude<BasicPrimitiveData, AsyncData>;
+  export type ExplicitAsync = Exclude<BasicPrimitiveData, AsyncData>;
   export type NotAsync = Exclude<BasicPrimitiveData, AsyncData>;
   export type Immediate =
     | StringData.Immediate

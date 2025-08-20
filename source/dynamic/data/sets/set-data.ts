@@ -1,12 +1,11 @@
+import { Async } from '../../async/async';
+import { OnDemandAsync } from '../../async/on-demand-async';
 import { isSetSource, SetSource } from '../../sources';
-import type { AsyncData } from '../variant-types';
 
-export type SetData<T> =
-  | SetData.Immediate<T>
-  | AsyncData<SetData.Immediate<T>>;
+export type SetData<T> = SetData.ExplicitAsync<T> | SetData.NotAsync<T>;
 export namespace SetData {
-  export type IsAsync<T> = Exclude<SetData<T>, AsyncData>;
-  export type NotAsync<T> = Exclude<SetData<T>, AsyncData>;
+  export type ExplicitAsync<T> = Async<NotAsync<T>> | OnDemandAsync<NotAsync<T>>;
+  export type NotAsync<T> = SetSource<T> | Set<T>;
   export type Immediate<T> =
     | SetSource.Immediate<T>
     | Set<T>;

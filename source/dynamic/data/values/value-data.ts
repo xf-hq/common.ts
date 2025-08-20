@@ -1,12 +1,11 @@
+import { Async } from '../../async/async';
+import { OnDemandAsync } from '../../async/on-demand-async';
 import { isValueSource, ValueSource } from '../../sources';
-import type { AsyncData } from '../variant-types';
 
-export type ValueData<T> =
-  | ValueData.Immediate<T>
-  | AsyncData<ValueData.Immediate<T>>;
+export type ValueData<T> = ValueData.ExplicitAsync<T> | ValueData.NotAsync<T>;
 export namespace ValueData {
-  export type IsAsync<T> = Exclude<T, AsyncData>;
-  export type NotAsync<T> = Exclude<T, AsyncData>;
+  export type ExplicitAsync<T> = Async<NotAsync<T>> | OnDemandAsync<NotAsync<T>>;
+  export type NotAsync<T> = ValueSource<T> | Exclude<T, ValueSource<T>>;
   export type Immediate<T> =
     | ValueSource.Immediate<T>
     | Exclude<T, ValueSource.Immediate<T>>;

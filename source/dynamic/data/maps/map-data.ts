@@ -1,12 +1,11 @@
+import type { Async } from '../../async/async';
+import type { OnDemandAsync } from '../../async/on-demand-async';
 import { isMapSource, MapSource } from '../../sources';
-import type { AsyncData } from '../variant-types';
 
-export type MapData<K, V> =
-  | MapData.Immediate<K, V>
-  | AsyncData<MapData.Immediate<K, V>>;
+export type MapData<K, V> = MapData.ExplicitAsync<K, V> | MapData.NotAsync<K, V>;
 export namespace MapData {
-  export type IsAsync<K, V> = Exclude<MapData<K, V>, AsyncData>;
-  export type NotAsync<K, V> = Exclude<MapData<K, V>, AsyncData>;
+  export type ExplicitAsync<K, V> = Async<NotAsync<K, V>> | OnDemandAsync<NotAsync<K, V>>;
+  export type NotAsync<K, V> = MapSource<K, V> | Map<K, V>;
   export type Immediate<K, V> =
     | MapSource.Immediate<K, V>
     | Map<K, V>;

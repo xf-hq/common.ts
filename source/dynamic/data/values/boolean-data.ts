@@ -1,15 +1,14 @@
+import { Async } from '../../async/async';
+import { OnDemandAsync } from '../../async/on-demand-async';
 import { BooleanSource } from '../../sources';
-import type { AsyncData } from '../variant-types';
 import { ValueData } from './value-data';
 
-export type BooleanData =
-  | BooleanData.Immediate
-  | AsyncData<BooleanData.Immediate>;
+export type BooleanData = BooleanData.ExplicitAsync | BooleanData.NotAsync;
 export namespace BooleanData {
-  export type IsAsync = Exclude<BooleanData, AsyncData>;
+  export type ExplicitAsync = Async<BooleanData.NotAsync> | OnDemandAsync<BooleanData.NotAsync>;
   export type NotAsync = BooleanSource | boolean;
   export type Immediate =
     | BooleanSource.Immediate
     | boolean;
-  export const snapshot: <T extends boolean>(source: ValueData<T>) => T = ValueData.snapshot;
+  export const snapshot: <T extends boolean>(source: ValueData.Immediate<T>) => T = ValueData.snapshot;
 }

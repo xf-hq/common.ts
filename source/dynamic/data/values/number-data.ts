@@ -1,15 +1,14 @@
+import { Async } from '../../async/async';
+import { OnDemandAsync } from '../../async/on-demand-async';
 import { type NumberSource } from '../../sources';
-import { type AsyncData } from '../variant-types';
 import { ValueData } from './value-data';
 
-export type NumberData =
-  | NumberData.Immediate
-  | AsyncData<NumberData.Immediate>;
+export type NumberData = NumberData.ExplicitAsync | NumberData.NotAsync;
 export namespace NumberData {
-  export type IsAsync = Exclude<NumberData, AsyncData>;
-  export type NotAsync = Exclude<NumberData, AsyncData>;
+  export type ExplicitAsync = Async<NumberData.NotAsync> | OnDemandAsync<NumberData.NotAsync>;
+  export type NotAsync = NumberSource | number;
   export type Immediate =
     | NumberSource.Immediate
     | number;
-  export const snapshot: <T extends number>(source: ValueData<T>) => T = ValueData.snapshot;
+  export const snapshot: <T extends number>(source: ValueData.Immediate<T>) => T = ValueData.snapshot;
 }

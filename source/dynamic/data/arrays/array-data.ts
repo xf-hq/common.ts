@@ -1,12 +1,11 @@
+import { Async } from '../../async/async';
+import { OnDemandAsync } from '../../async/on-demand-async';
 import { ArraySource, isArraySource } from '../../sources';
-import type { AsyncData } from '../variant-types';
 
-export type ArrayData<T> =
-  | ArrayData.Immediate<T>
-  | AsyncData<ArrayData.Immediate<T>>;
+export type ArrayData<T> = ArrayData.ExplicitAsync<T> | ArrayData.NotAsync<T>;
 export namespace ArrayData {
-  export type IsAsync<T> = Exclude<ArrayData<T>, AsyncData>;
-  export type NotAsync<T> = Exclude<ArrayData<T>, AsyncData>;
+  export type ExplicitAsync<T> = Async<NotAsync<T>> | OnDemandAsync<NotAsync<T>>;
+  export type NotAsync<T> = ArraySource<T> | readonly T[];
   export type Immediate<T> =
     | ArraySource.Immediate<T>
     | readonly T[];
