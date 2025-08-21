@@ -603,8 +603,8 @@ export namespace Context {
       bind<TContext extends ImmediateContext> (this: TContext, driver: Driver<void>): TContext;
       bind<TContext extends ImmediateContext, TDriver extends Driver> (this: TContext, driver: TDriver, bindingData: InferBindingData<TDriver>): TContext;
       bind<TContext extends ImmediateContext, TType extends Type> (this: TContext, type: TType, bindingData: Type.InferBindingData<TType>): TContext;
-      bind<TContext extends D, D extends ImmediateContext, A extends any[]> (this: TContext, bind: (context: D, ...args: A) => D, ...args: A): TContext;
-      bind<TContext extends D, D extends ImmediateContext, A extends any[]> (this: TContext, bind: { bindContext: (context: D, ...args: A) => D }, ...args: A): TContext;
+      bind<TContext extends ImmediateContext, A extends any[]> (this: TContext, bind: (context: TContext, ...args: A) => TContext, ...args: A): TContext;
+      bind<TContext extends ImmediateContext, A extends any[]> (this: TContext, bind: { bindContext: (context: TContext, ...args: A) => TContext }, ...args: A): TContext;
       bind<TContext extends ImmediateContext, RContext extends ImmediateContext, TBind extends BindUsing.Bind.OrNS<TContext, any, RContext>> (this: TContext, bind: TBind, ...args: BindUsing.Bind.InferArgs<TBind>): RContext;
       bind<TBind extends BindUsing.Bind.OrNS<this>> (this: BindUsing.Bind.InferTContext<TBind>, bind: TBind, ...args: BindUsing.Bind.InferArgs<TBind>): BindUsing.Bind.InferRContext<TBind>;
       bind (arg0: Driver | Type | BindUsing.Bind.OrNS, ...rest: any[]) {
