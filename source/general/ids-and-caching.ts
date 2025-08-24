@@ -37,8 +37,8 @@ export interface IdGenerator {
   cachedPerObject (object: object): number;
   withCallback (callback: (id: number) => void): number;
 }
-export function IdGenerator (base = 0, step = 1): IdGenerator {
-  let _id = base;
+export function IdGenerator (exclusiveBase = 0, step = 1): IdGenerator {
+  let _id = exclusiveBase;
   const idgen = () => _id += step;
   const withCallback = (callback: (id: number) => void) => { const id = idgen(); callback(id); return id; };
   Object.defineProperties(idgen, {
