@@ -556,9 +556,13 @@ export namespace Context {
         return this[cacheKey] = value;
       }
 
-      abortable<TContext extends ImmediateContext> (this: TContext, controller: AbortController): TContext {
+      abortable<TContext extends ImmediateContext> (this: TContext, signal: AbortSignal): TContext;
+      abortable<TContext extends ImmediateContext> (this: TContext, controller: AbortController): TContext;
+      abortable<TContext extends ImmediateContext> (this: TContext, arg: AbortSignal | AbortController): TContext {
         this._ImmediateContext_assertNotLocked();
-        return this.abort.forkToContext(this, controller);
+        if (arg instanceof AbortController) return this.abort.forkToContext(this, arg);
+        if (arg === this.abort.signal) return this;
+        return this.abort.merge(arg).bindToContext(this);
       }
 
       onAbort (callback: () => void): this {
@@ -1258,6 +1262,12 @@ export namespace Context {
       return this.#disposables;
     }
 
+    merge (upstreamSignal: AbortSignal): Abort {
+      const controller = this.spawnAbortController();
+      onAbort(upstreamSignal, controller);
+      return new Abort(controller);
+    }
+
     fork (controller: AbortController): Abort {
       this.signal.addEventListener('abort', () => controller.abort(), { signal: controller.signal });
       return new Abort(controller);
@@ -1364,6 +1374,7 @@ export import ImmediateContext = Context.Immediate;
 export import ContextDriver = Context.Driver;
 export import ContextQuery = Context.Query;
 import { makeCache } from '../general/ids-and-caching';
+import { combineAbortSignals, createChildAbortController, onAbort } from '../general/abort-signals';
 
 /**
  * Just for reference in case I want to do something similar in the future. All that `cmsg` formatting is time

@@ -27,9 +27,22 @@ export function combineAbortControllers (...controllers: AbortController[]): Abo
   return combinedController;
 }
 
-export function onAbort (abortSignal: AbortSignal, listener: () => void, listenerAbortSignal?: AbortSignal): void {
-  if (abortSignal.aborted) return listener();
-  abortSignal.addEventListener('abort', listener, listenerAbortSignal ? { signal: listenerAbortSignal, once: true } : { once: true });
+export function onAbort (abortSignal: AbortSignal, listener: () => void, listenerAbortSignal?: AbortSignal): void;
+export function onAbort (abortSignal: AbortSignal, controller: AbortController, listenerAbortSignal?: AbortSignal): void;
+export function onAbort (abortSignal: AbortSignal, arg: ((() => void) | AbortController), listenerAbortSignal?: AbortSignal): void {
+  if (arg instanceof AbortController) {
+    if (abortSignal.aborted) {
+      arg.abort();
+      return;
+    }
+    abortSignal.addEventListener('abort', () => arg.abort(), listenerAbortSignal ? { signal: combineAbortSignals(listenerAbortSignal, arg.signal), once: true } : { once: true, signal: arg.signal });
+    return;
+  }
+  if (abortSignal.aborted) {
+    arg();
+    return;
+  }
+  abortSignal.addEventListener('abort', arg, listenerAbortSignal ? { signal: listenerAbortSignal, once: true } : { once: true });
 }
 
 /**
