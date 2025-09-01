@@ -151,16 +151,7 @@ export function arrayConcat<T, U> (left: T[], right: U[]): (T | U)[] {
  * @returns The index of a matched element, or -1 if no match is found.
  */
 export function binarySearch<TItem, TComparator> (
-  test: (
-    /** An array element whose position is to be tested relative to the comparator */
-    element: TItem,
-    /** A value that the current array element is to be compared with */
-    comparator: TComparator,
-    /** The array index of the current element being tested */
-    index: number,
-    /** The full array being searched */
-    array: readonly TItem[]
-  ) => number,
+  test: binarySearch.Test<TItem, TComparator>,
   comparator: TComparator,
   sortedArray: readonly TItem[]
 ): number {
@@ -187,4 +178,59 @@ export function binarySearch<TItem, TComparator> (
     }
   }
   return found ? i : -1;
+}
+export namespace binarySearch {
+  export type Test<TItem, TComparator> = (
+    /** An array element whose position is to be tested relative to the comparator */
+    element: TItem,
+    /** A value that the current array element is to be compared with */
+    comparator: TComparator,
+    /** The array index of the current element being tested */
+    index: number,
+    /** The full array being searched */
+    array: readonly TItem[]
+  ) => number;
+}
+
+/**
+ * Returns the lowest index at which an item with the given comparator value can be inserted while preserving ordering.
+ *
+ * Semantics of the supplied test function must match those used by binarySearch:
+ *  - Negative result: comparator is lower (should be to the left of the element).
+ *  - Positive result: comparator is higher (should be to the right of the element).
+ *  - Zero: identity/equality (no ordinal difference).
+ *
+ * For duplicates, the returned index is the left-most position (lower bound). To insert after existing duplicates,
+ * advance the returned index while subsequent elements compare with result 0.
+ */
+export function findInsertionIndex<TItem, TComparator> (
+  test: binarySearch.Test<TItem, TComparator>,
+  comparator: TComparator,
+  sortedArray: readonly TItem[]
+): number {
+  let left = 0;
+  let right = sortedArray.length;
+  while (left < right) {
+    const mid = (left + right) >>> 1;
+    const c = test(sortedArray[mid], comparator, mid, sortedArray);
+    if (c > 0) {
+      left = mid + 1;
+    }
+    else {
+      right = mid;
+    }
+  }
+  return left;
+}
+
+export function insertIntoSortedArray<TItem> (
+  test: binarySearch.Test<TItem, TItem>,
+  item: TItem,
+  sortedArray: TItem[]
+): number {
+  const index = findInsertionIndex(test, item, sortedArray);
+  if (index === sortedArray.length) sortedArray.push(item);
+  else if (index === 0) sortedArray.unshift(item);
+  else sortedArray.splice(index, 0, item);
+  return index;
 }

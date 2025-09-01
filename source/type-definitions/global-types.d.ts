@@ -33,6 +33,7 @@ declare type AnyRecord = Record<keyof any, any>;
 declare type UnknownRecord = Record<keyof any, unknown>;
 declare type RecordOf<V> = Record<string, V>;
 declare type NestableRecordOf<V> = Record<string, V | Exclude<{ [K in string]: V }, V>>;
+declare type RecordWithSameKeysAs<T, V = any> = { [K in keyof T]: V };
 
 declare interface TypedRecord<T extends string = string, D = any> {
   readonly type: T;
