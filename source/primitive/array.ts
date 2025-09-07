@@ -151,7 +151,7 @@ export function arrayConcat<T, U> (left: T[], right: U[]): (T | U)[] {
  * @returns The index of a matched element, or -1 if no match is found.
  */
 export function binarySearch<TItem, TComparator> (
-  test: binarySearch.Test<TItem, TComparator>,
+  test: binarySearch.Compare<TItem, TComparator>,
   comparator: TComparator,
   sortedArray: readonly TItem[]
 ): number {
@@ -180,7 +180,7 @@ export function binarySearch<TItem, TComparator> (
   return found ? i : -1;
 }
 export namespace binarySearch {
-  export type Test<TItem, TComparator> = (
+  export type Compare<TItem, TComparator> = (
     /** An array element whose position is to be tested relative to the comparator */
     element: TItem,
     /** A value that the current array element is to be compared with */
@@ -204,7 +204,7 @@ export namespace binarySearch {
  * advance the returned index while subsequent elements compare with result 0.
  */
 export function findInsertionIndex<TItem, TComparator> (
-  test: binarySearch.Test<TItem, TComparator>,
+  compare: binarySearch.Compare<TItem, TComparator>,
   comparator: TComparator,
   sortedArray: readonly TItem[]
 ): number {
@@ -212,7 +212,7 @@ export function findInsertionIndex<TItem, TComparator> (
   let right = sortedArray.length;
   while (left < right) {
     const mid = (left + right) >>> 1;
-    const c = test(sortedArray[mid], comparator, mid, sortedArray);
+    const c = compare(sortedArray[mid], comparator, mid, sortedArray);
     if (c > 0) {
       left = mid + 1;
     }
@@ -224,11 +224,11 @@ export function findInsertionIndex<TItem, TComparator> (
 }
 
 export function insertIntoSortedArray<TItem> (
-  test: binarySearch.Test<TItem, TItem>,
+  compare: binarySearch.Compare<TItem, TItem>,
   item: TItem,
   sortedArray: TItem[]
 ): number {
-  const index = findInsertionIndex(test, item, sortedArray);
+  const index = findInsertionIndex(compare, item, sortedArray);
   if (index === sortedArray.length) sortedArray.push(item);
   else if (index === 0) sortedArray.unshift(item);
   else sortedArray.splice(index, 0, item);
