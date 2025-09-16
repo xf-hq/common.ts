@@ -41,10 +41,10 @@ export interface ConsoleLogger {
 export namespace ConsoleLogger {
   export interface Factory {
     /**
-     * @param topic If provided, the returned logger should prefix all messages with the given topic. If a function or
-     * other object with a `name` property is provided, the logger should use the value of that property as the topic.
+     * @param label If provided, the returned logger should prefix all messages with the given label. If a function or
+     * other object with a `name` property is provided, the logger should use the value of that property as the label.
      */
-    (topic?: string | { readonly name: string }): ConsoleLogger;
+    (label?: string | { readonly name: string }): ConsoleLogger;
   }
 
   export function Group (func: Group.Func, props: Group.Props): Group {
