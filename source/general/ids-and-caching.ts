@@ -9,6 +9,7 @@ export const cuid12 = Cuid.init({ counter: Math.random, length: 12, fingerprint:
 export const cuid16 = Cuid.init({ counter: Math.random, length: 16, fingerprint: 'salix' });
 export const cuid24 = Cuid.init({ counter: Math.random, length: 24, fingerprint: 'salix' });
 export const cuid32 = Cuid.init({ counter: Math.random, length: 32, fingerprint: 'salix' });
+export const isCuid = (value: string) => Cuid.isCuid(value);
 export const isCuid8 = (value: string) => Cuid.isCuid(value) && value.length === 8;
 export const isCuid8String = (value: any): value is string => isString(value) && isCuid8(value);
 export const isCuid12 = (value: string) => Cuid.isCuid(value) && value.length === 12;
