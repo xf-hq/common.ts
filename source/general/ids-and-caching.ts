@@ -4,12 +4,18 @@ import { isString, isUndefined } from './type-checking';
 
 export const newUUID: () => string = () => UUID.v4();
 
+export const cuid4 = Cuid.init({ counter: Math.random, length: 4, fingerprint: 'salix' });
+export const cuid6 = Cuid.init({ counter: Math.random, length: 6, fingerprint: 'salix' });
 export const cuid8 = Cuid.init({ counter: Math.random, length: 8, fingerprint: 'salix' });
 export const cuid12 = Cuid.init({ counter: Math.random, length: 12, fingerprint: 'salix' });
 export const cuid16 = Cuid.init({ counter: Math.random, length: 16, fingerprint: 'salix' });
 export const cuid24 = Cuid.init({ counter: Math.random, length: 24, fingerprint: 'salix' });
 export const cuid32 = Cuid.init({ counter: Math.random, length: 32, fingerprint: 'salix' });
 export const isCuid = (value: string) => Cuid.isCuid(value);
+export const isCuid4 = (value: string) => Cuid.isCuid(value) && value.length === 4;
+export const isCuid4String = (value: any): value is string => isString(value) && isCuid4(value);
+export const isCuid6 = (value: string) => Cuid.isCuid(value) && value.length === 6;
+export const isCuid6String = (value: any): value is string => isString(value) && isCuid6(value);
 export const isCuid8 = (value: string) => Cuid.isCuid(value) && value.length === 8;
 export const isCuid8String = (value: any): value is string => isString(value) && isCuid8(value);
 export const isCuid12 = (value: string) => Cuid.isCuid(value) && value.length === 12;
