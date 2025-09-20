@@ -302,8 +302,9 @@ export namespace TextBlock {
   }
 
   /**
-   * Trims leading and trailing lines that are either empty or consist only of whitespace. Leading and trailing
-   * whitespace for lines that also contain non-whitespace characters is preserved.
+   * Trims leading and trailing lines that are either empty or consist only of whitespace. The returned result will not
+   * begin or end with a newline. Leading and trailing whitespace for lines that also contain non-whitespace characters
+   * is preserved.
    */
   export function trimBlankLinesOnly (text: string): string {
     const firstNonWhitespaceCharIndex = /\S/.exec(text)?.index ?? -1;
