@@ -9,6 +9,10 @@ export function createChildAbortController (upstream: AbortSignal): AbortControl
   return controller;
 }
 
+export function createLocalAbortController (upstream?: AbortSignal | null | undefined): AbortController {
+  return upstream ? createChildAbortController(upstream) : new AbortController();
+}
+
 export function combineAbortSignals (...signals: AbortSignal[]): AbortSignal {
   if (signals.length === 1) return signals[0];
   const controller = new AbortController();
