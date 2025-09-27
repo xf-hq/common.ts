@@ -25,7 +25,7 @@ export function isIterable<T> (a: any): a is Iterable<T> { return isObject(a) &&
 /** NOTE: If you're having trouble getting this to eliminate a function from the type signature, remember that functions
   * are objects! You should FIRST be checking for a function, then an object when `function` is eliminated from the type
   * signature. Do this with {@link isFunction} or use `typeof`, THEN call {@link isObject}. */
-export function isObject<A extends object> (a: A | Nothing | Primitive | AnyFunction): a is IsExplicitAnyOrUnknown<A> extends true ? Record<keyof any, any> : A;
+export function isObject<A extends object> (a: A | Nothing | Primitive): a is IsExplicitAnyOrUnknown<A> extends true ? AnyRecord : A;
 export function isObject (a: unknown): a is Record<any, any>;
 export function isObject (a: unknown) { return typeof a === 'object' && a !== null; }
 export function isFunction<T> (a: T): a is Extract<T, (...args: any) => any> { return typeof a === 'function'; }
